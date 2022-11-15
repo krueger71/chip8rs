@@ -47,6 +47,7 @@ const FONTS: [u8; FONTS_SIZE] = [
 ];
 
 /// The virtual machine for Chip8
+#[derive(Debug)]
 pub struct Chip8 {
     /// RAM
     pub memory: [u8; MEMORY_SIZE],
@@ -66,6 +67,9 @@ pub struct Chip8 {
     pub stack: [u16; STACK_SIZE],
     /// Display "buffer"
     pub display: [u8; DISPLAY_SIZE],
+
+    /// Display has been updated
+    pub display_updated: bool,
 }
 
 impl Chip8 {
@@ -85,6 +89,7 @@ impl Chip8 {
             sp: 0,
             stack: [0; STACK_SIZE],
             display: [0; DISPLAY_SIZE],
+            display_updated: true,
         }
     }
 
@@ -92,10 +97,62 @@ impl Chip8 {
         let instr = (self.memory[self.pc as usize] as u16) << 8
             | (self.memory[1 + self.pc as usize] as u16);
         self.pc += 2;
-        let opcode = instr & 0xF000 >> 8;
 
-        match opcode {
-            _ => println!("op = {:04x}", opcode),
+        // 0xIXYN,0x__NN,0x_NNN
+        let i = ((instr & 0xF000) >> 12) as u8;
+        let x = ((instr & 0x0F00) >> 8) as u8;
+        let y = ((instr & 0x00F0) >> 4) as u8;
+        let n = (instr & 0x000F) as u8;
+        let nn = (instr & 0x00FF) as u8;
+        let nnn = instr & 0x0FFF;
+
+        println!(
+            "instr = {:04x}, i = {:x}, x = {:x}, y = {:x}, n = {:x}, nn = {:02x}, nnn = {:03x}",
+            instr, i, x, y, n, nn, nnn
+        );
+
+        /*
+
+        Start with these
+        00E0 (clear screen)
+        1NNN (jump)
+        6XNN (set register VX)
+        7XNN (add value to register VX)
+        ANNN (set index register I)
+        DXYN (display/draw)
+
+        */
+        match i {
+            0 => match nn {
+                0xe0 => {
+                    // 00E0 Clear the screen
+                    self.display.fill(0);
+                    self.display_updated = true;
+                }
+                _ => (),
+            },
+            1 => {
+                // 1NNN Jump to NNN
+                self.pc = PROGRAM_START as u16 + nnn;
+            }
+            6 => {
+                // 6XNN set register VX to NN
+                self.registers[x as usize] = nn;
+            }
+            7 => {
+                // 7XNN add NN to register VX
+                self.registers[x as usize] = (self.registers[x as usize] as u16 + nn as u16) as u8;
+            }
+            0xA => {
+                // ANNN set index register I
+                self.i = nnn;
+            }
+            0xD => {
+                // DXYN draw
+            }
+            _ => {
+                println!("instr = {:04x} not decoded!", instr);
+            }
         }
     }
 }

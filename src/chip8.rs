@@ -11,21 +11,21 @@
 //! The purpose of the implementation is both to learn Rust and basic emulator programming.
 
 /// Memory size in bytes
-pub const MEMORY_SIZE: usize = 4096;
+const MEMORY_SIZE: usize = 4096;
 /// Program start
-pub const PROGRAM_START: usize = 0x200;
+const PROGRAM_START: usize = 0x200;
 /// Number of general purpose registers
-pub const NUMBER_OF_REGISTERS: usize = 16;
+const NUMBER_OF_REGISTERS: usize = 16;
 /// Size of stack
-pub const STACK_SIZE: usize = 16;
+const STACK_SIZE: usize = 16;
 /// Width of display in pixels
 pub const DISPLAY_WIDTH: usize = 64;
 /// Height of display in pixels
 pub const DISPLAY_HEIGHT: usize = 32;
 /// Size of display in bytes
-pub const DISPLAY_SIZE: usize = (DISPLAY_WIDTH * DISPLAY_HEIGHT) / 8;
+const DISPLAY_SIZE: usize = (DISPLAY_WIDTH * DISPLAY_HEIGHT) / 8;
 /// Size of fonts in bytes
-pub const FONTS_SIZE: usize = 16 * 5;
+const FONTS_SIZE: usize = 16 * 5;
 /// Default fonts
 const FONTS: [u8; FONTS_SIZE] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
@@ -48,6 +48,7 @@ const FONTS: [u8; FONTS_SIZE] = [
 
 /// The virtual machine for Chip8
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct Chip8 {
     /// RAM
     pub memory: [u8; MEMORY_SIZE],
@@ -65,11 +66,13 @@ pub struct Chip8 {
     pub sp: u8,
     /// Stack
     pub stack: [u16; STACK_SIZE],
+
     /// Display "buffer"
     pub display: [u8; DISPLAY_SIZE],
-
-    /// Display has been updated
+    /// Display has been updated. Redraw the display on target and set to false
     pub display_updated: bool,
+    /// Sound should play
+    pub play_sound: bool,
 }
 
 impl Chip8 {
@@ -90,6 +93,7 @@ impl Chip8 {
             stack: [0; STACK_SIZE],
             display: [0; DISPLAY_SIZE],
             display_updated: true,
+            play_sound: false,
         }
     }
 
@@ -107,8 +111,8 @@ impl Chip8 {
         let nnn = instr & 0x0FFF;
 
         println!(
-            "instr = {:04x}, i = {:x}, x = {:x}, y = {:x}, n = {:x}, nn = {:02x}, nnn = {:03x}",
-            instr, i, x, y, n, nn, nnn
+            "instr = {:04x}, i = {:x}, x = {:x}, y = {:x}, n = {:x}, nn = {:02x}, nnn = {:03x}, pc = {:04x}",
+            instr, i, x, y, n, nn, nnn, self.pc
         );
 
         /*
@@ -129,11 +133,13 @@ impl Chip8 {
                     self.display.fill(0);
                     self.display_updated = true;
                 }
-                _ => (),
+                _ => {
+                    println!("instr = {:04x} not decoded!", instr);
+                }
             },
             1 => {
                 // 1NNN Jump to NNN
-                self.pc = PROGRAM_START as u16 + nnn;
+                self.pc = nnn;
             }
             6 => {
                 // 6XNN set register VX to NN
@@ -154,5 +160,7 @@ impl Chip8 {
                 println!("instr = {:04x} not decoded!", instr);
             }
         }
+
+        //println!("pc = {:04x}", self.pc);
     }
 }

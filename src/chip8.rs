@@ -23,7 +23,7 @@ pub const DISPLAY_WIDTH: usize = 64;
 /// Height of display in pixels
 pub const DISPLAY_HEIGHT: usize = 32;
 /// Size of display in bytes
-const DISPLAY_SIZE: usize = (DISPLAY_WIDTH * DISPLAY_HEIGHT) / 8;
+const DISPLAY_SIZE: usize = (DISPLAY_WIDTH * DISPLAY_HEIGHT) / 8; // Each pixel is represented only with one bit (on/off)
 /// Size of fonts in bytes
 const FONTS_SIZE: usize = 16 * 5;
 /// Default fonts
@@ -70,7 +70,7 @@ pub struct Chip8 {
     /// Display "buffer"
     pub display: [u8; DISPLAY_SIZE],
     /// Display has been updated. Redraw the display on target and set to false
-    pub display_updated: bool,
+    pub display_update: bool,
     /// Sound should play
     pub play_sound: bool,
 }
@@ -92,7 +92,7 @@ impl Chip8 {
             sp: 0,
             stack: [0; STACK_SIZE],
             display: [0; DISPLAY_SIZE],
-            display_updated: true,
+            display_update: true,
             play_sound: false,
         }
     }
@@ -117,7 +117,7 @@ impl Chip8 {
 
         /*
 
-        Start with these
+        Start with these to get the IBM logo program to work.
         00E0 (clear screen)
         1NNN (jump)
         6XNN (set register VX)
@@ -130,8 +130,8 @@ impl Chip8 {
             0 => match nn {
                 0xe0 => {
                     // 00E0 Clear the screen
-                    self.display.fill(0);
-                    self.display_updated = true;
+                    self.display.fill(0b1000_0100);
+                    self.display_update = true;
                 }
                 _ => {
                     println!("instr = {:04x} not decoded!", instr);
@@ -155,6 +155,8 @@ impl Chip8 {
             }
             0xD => {
                 // DXYN draw
+                self.display.fill(self.pc as u8);
+                self.display_update = true;
             }
             _ => {
                 println!("instr = {:04x} not decoded!", instr);
@@ -162,5 +164,15 @@ impl Chip8 {
         }
 
         //println!("pc = {:04x}", self.pc);
+    }
+
+    /// Get the pixel with display coordinate (x, y)
+    pub fn get_pixel(&self, x: usize, y: usize) -> u8 {
+        let i = y * (DISPLAY_WIDTH / 8) + (x / 8);
+        let byte = self.display[i];
+        let shift = 8 - (x % 8) - 1;
+        let ret = (byte >> shift) & 1;
+        //println!("x={}, y={}, byte={:08b}, ret={}", x, y, byte, ret);
+        ret
     }
 }

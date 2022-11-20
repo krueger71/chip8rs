@@ -18,6 +18,9 @@ struct Cli {
     /// Instruction multiplier (instructions per frame)
     #[arg(short, long, default_value_t = 10)]
     mul: u16,
+    /// Scale of display
+    #[arg(short, long, default_value_t = 10)]
+    scale: u8,
 }
 
 fn main() {
@@ -26,6 +29,6 @@ fn main() {
     println!("{:?}", cli);
 
     let program = std::fs::read(&cli.program).expect("could not read file");
-    let mut emusdl = EmuSdl2::new(program, cli.fps, cli.mul);
+    let mut emusdl = EmuSdl2::new(program, cli.fps, cli.mul, cli.scale);
     emusdl.run();
 }

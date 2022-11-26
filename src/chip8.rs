@@ -22,8 +22,6 @@ const STACK_SIZE: usize = 16;
 pub const DISPLAY_WIDTH: usize = 64;
 /// Height of display in pixels
 pub const DISPLAY_HEIGHT: usize = 32;
-/// Size of display in bytes
-const DISPLAY_SIZE: usize = (DISPLAY_WIDTH * DISPLAY_HEIGHT) / 8; // Each pixel is represented only with one bit (on/off)
 /// Size of fonts in bytes
 const FONTS_SIZE: usize = 16 * 5;
 /// Default fonts
@@ -45,6 +43,8 @@ const FONTS: [u8; FONTS_SIZE] = [
     0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
     0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 ];
+/// Size of the keyboard
+pub const KEYBOARD_SIZE: usize = 16;
 
 /// The virtual machine for Chip8
 #[derive(Debug)]
@@ -67,12 +67,14 @@ pub struct Chip8 {
     /// Stack
     pub stack: [u16; STACK_SIZE],
 
-    /// Display "buffer"
-    pub display: [u8; DISPLAY_SIZE],
+    /// Display "buffer" output as 2-d array of bool
+    pub display: [[bool; DISPLAY_WIDTH]; DISPLAY_HEIGHT],
     /// Display has been updated. Redraw the display on target and set to false
     pub display_update: bool,
     /// Sound should play
     pub play_sound: bool,
+    /// Keyboard input as array of bool
+    pub keyboard: [bool; KEYBOARD_SIZE],
 }
 
 impl Chip8 {
@@ -91,9 +93,10 @@ impl Chip8 {
             pc: PROGRAM_START as u16,
             sp: 0,
             stack: [0; STACK_SIZE],
-            display: [0; DISPLAY_SIZE],
-            display_update: true,
+            display: [[false; DISPLAY_WIDTH]; DISPLAY_HEIGHT],
+            display_update: false,
             play_sound: false,
+            keyboard: [false; KEYBOARD_SIZE],
         }
     }
 
@@ -130,7 +133,7 @@ impl Chip8 {
             0 => match nn {
                 0xe0 => {
                     // 00E0 Clear the screen
-                    self.display.fill(0b1000_0100);
+                    self.display = [[false; DISPLAY_WIDTH]; DISPLAY_HEIGHT];
                     self.display_update = true;
                 }
                 _ => {
@@ -155,7 +158,40 @@ impl Chip8 {
             }
             0xD => {
                 // DXYN draw
-                self.display.fill(self.pc as u8);
+                let px = self.registers[x as usize] % (DISPLAY_WIDTH as u8);
+                let py = self.registers[y as usize] % (DISPLAY_HEIGHT as u8);
+                let idx = self.i as usize;
+                let sprite = &self.memory[idx..(idx + n as usize)];
+                self.registers[0xf] = 0;
+
+                // Iterate over each individual bit in each byte of sprite
+                // Set each bit according to the rules for DXYN draw in display
+                // Sprites wrap-around immediately in this implementation, which is probably incorrect
+
+                let mut dy = 0;
+                for byte in sprite {
+                    for dx in 0..8 {
+                        let old = self.display[(py as usize + dy as usize) % DISPLAY_HEIGHT]
+                            [(px as usize + dx as usize) % DISPLAY_WIDTH];
+                        let mut new = ((byte >> (7 - dx)) & 1) == 1;
+
+                        if new {
+                            if old {
+                                new = false;
+                                self.registers[0xf] = 1;
+                            }
+                            self.display[(py as usize + dy as usize) % DISPLAY_HEIGHT]
+                                [(px as usize + dx as usize) % DISPLAY_WIDTH] = new;
+                            self.display_update = true;
+                        }
+                    }
+                    dy += 1;
+                }
+
+                println!(
+                    "DXYN px={} py={} n={} from i={:x} sprite={:02x?}",
+                    px, py, n, self.i, sprite
+                );
                 self.display_update = true;
             }
             _ => {
@@ -164,15 +200,5 @@ impl Chip8 {
         }
 
         //println!("pc = {:04x}", self.pc);
-    }
-
-    /// Get the pixel with display coordinate (x, y)
-    pub fn get_pixel(&self, x: usize, y: usize) -> u8 {
-        let i = y * (DISPLAY_WIDTH / 8) + (x / 8);
-        let byte = self.display[i];
-        let shift = 8 - (x % 8) - 1;
-        let ret = (byte >> shift) & 1;
-        //println!("x={}, y={}, byte={:08b}, ret={}", x, y, byte, ret);
-        ret
     }
 }

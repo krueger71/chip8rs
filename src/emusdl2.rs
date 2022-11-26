@@ -107,7 +107,7 @@ impl EmuSdl2 {
 
                 for y in 0..DISPLAY_HEIGHT {
                     for x in 0..DISPLAY_WIDTH {
-                        if self.chip8.get_pixel(x, y) == 1 {
+                        if self.chip8.display[y][x] {
                             canvas.draw_point(Point::new(x as i32, y as i32)).unwrap();
                         }
                     }

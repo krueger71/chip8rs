@@ -192,7 +192,6 @@ impl Chip8 {
                     "DXYN px={} py={} n={} from i={:x} sprite={:02x?}",
                     px, py, n, self.i, sprite
                 );
-                self.display_update = true;
             }
             _ => {
                 println!("instr = {:04x} not decoded!", instr);

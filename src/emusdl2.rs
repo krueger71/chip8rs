@@ -113,14 +113,19 @@ impl EmuSdl2 {
                     }
                 }
                 canvas.present();
-                println!("Display updated");
+
+                #[cfg(debug_assertions)]
+                eprintln!("Display updated");
+
                 self.chip8.display_update = false; // Chip8 will set this to true whenever something changes on screen
             }
 
             let sleep_duration =
-                (1000_000_000 as i64 / self.fps as i64) - t.elapsed().as_nanos() as i64;
+                (1_000_000_000_i64 / self.fps as i64) - t.elapsed().as_nanos() as i64;
 
-            println!("Sleeping {} ns", sleep_duration);
+            #[cfg(debug_assertions)]
+            eprintln!("Sleeping {} ns", sleep_duration);
+
             if sleep_duration >= 0 {
                 sleep(Duration::new(0, sleep_duration as u32));
             }

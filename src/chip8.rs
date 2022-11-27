@@ -1,14 +1,4 @@
-//! A Chip8 emulator based on information and inspiration from:
-//!
-//! * [https://en.wikipedia.org/wiki/CHIP-8](https://en.wikipedia.org/wiki/CHIP-8)
-//! * [https://tonisagrista.com/blog/2021/chip8-spec/](https://tonisagrista.com/blog/2021/chip8-spec/)
-//! * [http://devernay.free.fr/hacks/chip8/C8TECH10.HTM](http://devernay.free.fr/hacks/chip8/C8TECH10.HTM)
-//! * [https://chip-8.github.io/](https://chip-8.github.io/)
-//! * [https://tobiasvl.github.io/blog/write-a-chip-8-emulator/](https://tobiasvl.github.io/blog/write-a-chip-8-emulator/)
-//! * [https://github.com/JohnEarnest/Octo](https://github.com/JohnEarnest/Octo)
-//! * [https://github.com/mattmikolay/chip-8](https://github.com/mattmikolay/chip-8)
-//!
-//! The purpose of the implementation is both to learn Rust and basic emulator programming.
+//! A Chip8 model
 
 /// Memory size in bytes
 const MEMORY_SIZE: usize = 4096;
@@ -118,17 +108,6 @@ impl Chip8 {
             instr, i, x, y, n, nn, nnn, self.pc
         );
 
-        /*
-
-        Start with these to get the IBM logo program to work.
-        00E0 (clear screen)
-        1NNN (jump)
-        6XNN (set register VX)
-        7XNN (add value to register VX)
-        ANNN (set index register I)
-        DXYN (display/draw)
-
-        */
         match i {
             0 => match nn {
                 0xe0 => {

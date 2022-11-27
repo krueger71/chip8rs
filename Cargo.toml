@@ -1,6 +1,6 @@
 [package]
 authors = ["Fredrik Andersson <krueger71@users.noreply.github.com>"]
-description = "Chip8 emulator"
+description = "Chip8 Emulator"
 edition = "2021"
 license = "ISC"
 name = "chip8rs"

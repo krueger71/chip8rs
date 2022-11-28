@@ -3,7 +3,12 @@ use std::{
     time::{Duration, Instant},
 };
 
-use sdl2::{event::Event, keyboard::Keycode, pixels::Color, rect::Point};
+use sdl2::{
+    event::Event,
+    keyboard::{Keycode, Scancode},
+    pixels::Color,
+    rect::Point,
+};
 
 use crate::chip8::{Chip8, DISPLAY_HEIGHT, DISPLAY_WIDTH};
 
@@ -77,6 +82,26 @@ impl EmuSdl2 {
                         keycode: Some(Keycode::Escape),
                         ..
                     } => break 'main,
+                    Event::KeyDown {
+                        scancode: Some(scancode),
+                        ..
+                    } => {
+                        if let Some(keycode) = self.keymap(scancode) {
+                            self.chip8.keyboard[keycode] = true;
+                            #[cfg(debug_assertions)]
+                            eprintln!("Key {:0x} down", keycode);
+                        }
+                    }
+                    Event::KeyUp {
+                        scancode: Some(scancode),
+                        ..
+                    } => {
+                        if let Some(keycode) = self.keymap(scancode) {
+                            self.chip8.keyboard[keycode] = false;
+                            #[cfg(debug_assertions)]
+                            eprintln!("Key {:0x} up", keycode);
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -129,6 +154,28 @@ impl EmuSdl2 {
             if sleep_duration >= 0 {
                 sleep(Duration::new(0, sleep_duration as u32));
             }
+        }
+    }
+
+    pub(crate) fn keymap(&self, scancode: Scancode) -> Option<usize> {
+        match scancode {
+            Scancode::Num1 => Some(1),
+            Scancode::Num2 => Some(2),
+            Scancode::Num3 => Some(3),
+            Scancode::Num4 => Some(0xc),
+            Scancode::Q => Some(4),
+            Scancode::W => Some(5),
+            Scancode::E => Some(6),
+            Scancode::R => Some(0xd),
+            Scancode::A => Some(7),
+            Scancode::S => Some(8),
+            Scancode::D => Some(9),
+            Scancode::F => Some(0xe),
+            Scancode::Z => Some(0xA),
+            Scancode::X => Some(0),
+            Scancode::C => Some(0xb),
+            Scancode::V => Some(0xf),
+            _ => None,
         }
     }
 }

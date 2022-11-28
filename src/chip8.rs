@@ -211,6 +211,28 @@ impl Chip8 {
                             self.registers[0xf] = 1;
                         }
                     }
+                    6 => {
+                        // 8XY6 - SHR VX. Set VF to LSB and shift value in VX right one bit
+                        self.registers[0xf] = self.registers[x as usize] & 1;
+                        self.registers[x as usize] >>= 1;
+                    }
+                    7 => {
+                        // 8XY7 - SUBN VX, VY. Store value of VY - VX in VX with overflow status in VF
+                        let (result, overflow) =
+                            self.registers[y as usize].overflowing_sub(self.registers[x as usize]);
+                        self.registers[x as usize] = result;
+
+                        if overflow {
+                            self.registers[0xf] = 0;
+                        } else {
+                            self.registers[0xf] = 1;
+                        }
+                    }
+                    0xe => {
+                        // 8XY6 - SHL VX. Set VF to MSB and shift value in VX left one bit
+                        self.registers[0xf] = self.registers[x as usize] & 0b1000_0000;
+                        self.registers[x as usize] <<= 1;
+                    }
                     _ => {
                         unmatched_instruction(instr);
                     }
@@ -230,8 +252,16 @@ impl Chip8 {
                 }
             }
             0xA => {
-                // ANNN - LD I, address. Set index register I to address
+                // ANNN - LD I, addr. Set index register I to address
                 self.i = nnn;
+            }
+            0xB => {
+                // BNNN - JP V0, addr. Jump to location nnn + V0
+                self.pc = nnn + self.registers[0] as u16;
+            }
+            0xC => {
+                // CXNN - RND Vx, byte. Set VX to random number AND NN
+                self.registers[x as usize] = rand::random::<u8>() & nn;
             }
             0xD => {
                 // DXYN - DRW VX, VY, nibble. Draw n-byte sprite at X,Y with collision detection using XOR

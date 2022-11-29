@@ -49,13 +49,13 @@ pub struct Chip8 {
     /// Sound timer register
     pub st: u8,
     /// Index register
-    pub i: u16,
+    pub i: usize,
     /// Program counter
-    pub pc: u16,
+    pub pc: usize,
     /// Stack pointer
-    pub sp: u8,
+    pub sp: usize,
     /// Stack
-    pub stack: [u16; STACK_SIZE],
+    pub stack: [usize; STACK_SIZE],
 
     /// Display "buffer" output as 2-d array of bool
     pub display: [[bool; DISPLAY_WIDTH]; DISPLAY_HEIGHT],
@@ -80,7 +80,7 @@ impl Chip8 {
             dt: 0,
             st: 0,
             i: 0,
-            pc: PROGRAM_START as u16,
+            pc: PROGRAM_START,
             sp: 0,
             stack: [0; STACK_SIZE],
             display: [[false; DISPLAY_WIDTH]; DISPLAY_HEIGHT],
@@ -91,14 +91,13 @@ impl Chip8 {
     }
 
     pub fn step(&mut self) {
-        let instr = (self.memory[self.pc as usize] as u16) << 8
-            | (self.memory[1 + self.pc as usize] as u16);
+        let instr = (self.memory[self.pc] as u16) << 8 | (self.memory[1 + self.pc] as u16);
         self.pc += 2;
 
         // 0xIXYN,0x__NN,0x_NNN
         let i = ((instr & 0xF000) >> 12) as u8;
-        let x = ((instr & 0x0F00) >> 8) as u8;
-        let y = ((instr & 0x00F0) >> 4) as u8;
+        let x = ((instr & 0x0F00) >> 8) as usize;
+        let y = ((instr & 0x00F0) >> 4) as usize;
         let n = (instr & 0x000F) as u8;
         let nn = (instr & 0x00FF) as u8;
         let nnn = instr & 0x0FFF;
@@ -119,7 +118,7 @@ impl Chip8 {
                     }
                     0x0ee => {
                         // 00EE - RET. Return from subroutine
-                        self.pc = self.stack[self.sp as usize];
+                        self.pc = self.stack[self.sp];
                         self.sp -= 1;
                     }
                     _ => {
@@ -129,22 +128,23 @@ impl Chip8 {
             }
             1 => {
                 // 1NNN - JP. Jump to address NNN
-                self.pc = nnn;
+                self.pc = nnn as usize;
             }
             2 => {
                 // 2NNN - CALL. Call subroutine at address NNN
                 self.sp += 1;
-                self.stack[self.sp as usize] = self.pc;
+                self.stack[self.sp] = self.pc;
+                self.pc = nnn as usize;
             }
             3 => {
                 // 3XNN - SE VX, byte. Skip next instruction if VX == NN
-                if self.registers[x as usize] == nn {
+                if self.registers[x] == nn {
                     self.pc += 2;
                 }
             }
             4 => {
                 // 4XNN - SNE VX, byte. Skip next instruction if VX != NN
-                if self.registers[x as usize] != nn {
+                if self.registers[x] != nn {
                     self.pc += 2;
                 }
             }
@@ -152,7 +152,7 @@ impl Chip8 {
                 // 5XY0 - SE VX, VY. Skip next instruction if VX == VY
                 match n {
                     0 => {
-                        if self.registers[x as usize] == self.registers[y as usize] {
+                        if self.registers[x] == self.registers[y] {
                             self.pc += 2;
                         }
                     }
@@ -163,35 +163,35 @@ impl Chip8 {
             }
             6 => {
                 // 6XNN - LD VX, byte. Set register VX to NN
-                self.registers[x as usize] = nn;
+                self.registers[x] = nn;
             }
             7 => {
                 // 7XNN - ADD VX, byte. Add NN to register VX
-                self.registers[x as usize] = (self.registers[x as usize] as u16 + nn as u16) as u8;
+                self.registers[x] = (self.registers[x] as u16 + nn as u16) as u8;
             }
             8 => {
                 match n {
                     0 => {
                         // 8XY0 - LD VX, VY. Store value of VY in VX
-                        self.registers[x as usize] = self.registers[y as usize];
+                        self.registers[x] = self.registers[y];
                     }
                     1 => {
                         // 8XY1 - OR VX, VY. Store value of VX OR VY in VX
-                        self.registers[x as usize] |= self.registers[y as usize];
+                        self.registers[x] |= self.registers[y];
                     }
                     2 => {
                         // 8XY2 - AND VX, VY. Store value of VX AND VY in VX
-                        self.registers[x as usize] &= self.registers[y as usize];
+                        self.registers[x] &= self.registers[y];
                     }
                     3 => {
                         // 8XY3 - XOR VX, VY. Store value of VX XOR VY in VX
-                        self.registers[x as usize] ^= self.registers[y as usize];
+                        self.registers[x] ^= self.registers[y];
                     }
                     4 => {
                         // 8XY4 - ADD VX, VY. Store value of VX + VY in VX with overflow status in VF
                         let (result, overflow) =
-                            self.registers[x as usize].overflowing_add(self.registers[y as usize]);
-                        self.registers[x as usize] = result;
+                            self.registers[x].overflowing_add(self.registers[y]);
+                        self.registers[x] = result;
 
                         if overflow {
                             self.registers[0xf] = 1;
@@ -202,8 +202,8 @@ impl Chip8 {
                     5 => {
                         // 8XY5 - SUB VX, VY. Store value of VX - VY in VX with overflow status in VF
                         let (result, overflow) =
-                            self.registers[x as usize].overflowing_sub(self.registers[y as usize]);
-                        self.registers[x as usize] = result;
+                            self.registers[x].overflowing_sub(self.registers[y]);
+                        self.registers[x] = result;
 
                         if overflow {
                             self.registers[0xf] = 0;
@@ -213,14 +213,14 @@ impl Chip8 {
                     }
                     6 => {
                         // 8XY6 - SHR VX. Set VF to LSB and shift value in VX right one bit
-                        self.registers[0xf] = self.registers[x as usize] & 1;
-                        self.registers[x as usize] >>= 1;
+                        self.registers[0xf] = self.registers[x] & 1;
+                        self.registers[x] >>= 1;
                     }
                     7 => {
                         // 8XY7 - SUBN VX, VY. Store value of VY - VX in VX with overflow status in VF
                         let (result, overflow) =
-                            self.registers[y as usize].overflowing_sub(self.registers[x as usize]);
-                        self.registers[x as usize] = result;
+                            self.registers[y].overflowing_sub(self.registers[x]);
+                        self.registers[x] = result;
 
                         if overflow {
                             self.registers[0xf] = 0;
@@ -230,8 +230,8 @@ impl Chip8 {
                     }
                     0xe => {
                         // 8XY6 - SHL VX. Set VF to MSB and shift value in VX left one bit
-                        self.registers[0xf] = self.registers[x as usize] & 0b1000_0000;
-                        self.registers[x as usize] <<= 1;
+                        self.registers[0xf] = self.registers[x] & 0b1000_0000;
+                        self.registers[x] <<= 1;
                     }
                     _ => {
                         unmatched_instruction(instr);
@@ -242,7 +242,7 @@ impl Chip8 {
                 // 9XY0 - SNE VX, VY. Skip next instruction if VX != VY
                 match n {
                     0 => {
-                        if self.registers[x as usize] != self.registers[y as usize] {
+                        if self.registers[x] != self.registers[y] {
                             self.pc += 2;
                         }
                     }
@@ -253,20 +253,20 @@ impl Chip8 {
             }
             0xA => {
                 // ANNN - LD I, addr. Set index register I to address
-                self.i = nnn;
+                self.i = nnn as usize;
             }
             0xB => {
                 // BNNN - JP V0, addr. Jump to location nnn + V0
-                self.pc = nnn + self.registers[0] as u16;
+                self.pc = (nnn + self.registers[0] as u16) as usize;
             }
             0xC => {
                 // CXNN - RND Vx, byte. Set VX to random number AND NN
-                self.registers[x as usize] = rand::random::<u8>() & nn;
+                self.registers[x] = rand::random::<u8>() & nn;
             }
             0xD => {
                 // DXYN - DRW VX, VY, nibble. Draw n-byte sprite at X,Y with collision detection using XOR
-                let px = self.registers[x as usize] % (DISPLAY_WIDTH as u8);
-                let py = self.registers[y as usize] % (DISPLAY_HEIGHT as u8);
+                let px = (self.registers[x] % (DISPLAY_WIDTH as u8)) as usize;
+                let py = (self.registers[y] % (DISPLAY_HEIGHT as u8)) as usize;
                 let idx = self.i as usize;
                 let sprite = &self.memory[idx..(idx + n as usize)];
                 self.registers[0xf] = 0;
@@ -277,8 +277,8 @@ impl Chip8 {
 
                 for (dy, byte) in sprite.iter().enumerate() {
                     for dx in 0..8 {
-                        let old = self.display[(py as usize + dy as usize) % DISPLAY_HEIGHT]
-                            [(px as usize + dx as usize) % DISPLAY_WIDTH];
+                        let old =
+                            self.display[(py + dy) % DISPLAY_HEIGHT][(px + dx) % DISPLAY_WIDTH];
                         let mut new = ((byte >> (7 - dx)) & 1) == 1;
 
                         if new {
@@ -286,8 +286,9 @@ impl Chip8 {
                                 new = false;
                                 self.registers[0xf] = 1;
                             }
-                            self.display[(py as usize + dy as usize) % DISPLAY_HEIGHT]
-                                [(px as usize + dx as usize) % DISPLAY_WIDTH] = new;
+
+                            self.display[(py + dy) % DISPLAY_HEIGHT][(px + dx) % DISPLAY_WIDTH] =
+                                new;
                             self.display_update = true;
                         }
                     }

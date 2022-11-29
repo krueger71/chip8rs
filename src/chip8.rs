@@ -111,12 +111,12 @@ impl Chip8 {
         match i {
             0 => {
                 match nnn {
-                    0x0e0 => {
+                    0x0E0 => {
                         // 00E0 - CLS. Clear the screen
                         self.display = [[false; DISPLAY_WIDTH]; DISPLAY_HEIGHT];
                         self.display_update = true;
                     }
-                    0x0ee => {
+                    0x0EE => {
                         // 00EE - RET. Return from subroutine
                         self.pc = self.stack[self.sp];
                         self.sp -= 1;
@@ -194,9 +194,9 @@ impl Chip8 {
                         self.registers[x] = result;
 
                         if overflow {
-                            self.registers[0xf] = 1;
+                            self.registers[0xF] = 1;
                         } else {
-                            self.registers[0xf] = 0;
+                            self.registers[0xF] = 0;
                         }
                     }
                     5 => {
@@ -206,14 +206,14 @@ impl Chip8 {
                         self.registers[x] = result;
 
                         if overflow {
-                            self.registers[0xf] = 0;
+                            self.registers[0xF] = 0;
                         } else {
-                            self.registers[0xf] = 1;
+                            self.registers[0xF] = 1;
                         }
                     }
                     6 => {
                         // 8XY6 - SHR VX. Set VF to LSB and shift value in VX right one bit
-                        self.registers[0xf] = self.registers[x] & 1;
+                        self.registers[0xF] = self.registers[x] & 1;
                         self.registers[x] >>= 1;
                     }
                     7 => {
@@ -223,14 +223,14 @@ impl Chip8 {
                         self.registers[x] = result;
 
                         if overflow {
-                            self.registers[0xf] = 0;
+                            self.registers[0xF] = 0;
                         } else {
-                            self.registers[0xf] = 1;
+                            self.registers[0xF] = 1;
                         }
                     }
-                    0xe => {
-                        // 8XY6 - SHL VX. Set VF to MSB and shift value in VX left one bit
-                        self.registers[0xf] = self.registers[x] & 0b1000_0000;
+                    0xE => {
+                        // 8XYE - SHL VX. Set VF to MSB and shift value in VX left one bit
+                        self.registers[0xF] = self.registers[x] & 0b1000_0000;
                         self.registers[x] <<= 1;
                     }
                     _ => {
@@ -269,7 +269,7 @@ impl Chip8 {
                 let py = (self.registers[y] % (DISPLAY_HEIGHT as u8)) as usize;
                 let idx = self.i as usize;
                 let sprite = &self.memory[idx..(idx + n as usize)];
-                self.registers[0xf] = 0;
+                self.registers[0xF] = 0;
 
                 // Iterate over each individual bit in each byte of sprite
                 // Set each bit according to the rules for DXYN draw in display
@@ -284,7 +284,7 @@ impl Chip8 {
                         if new {
                             if old {
                                 new = false;
-                                self.registers[0xf] = 1;
+                                self.registers[0xF] = 1;
                             }
 
                             self.display[(py + dy) % DISPLAY_HEIGHT][(px + dx) % DISPLAY_WIDTH] =
@@ -300,11 +300,29 @@ impl Chip8 {
                     px, py, n, self.i, sprite
                 );
             }
+            0xE => {
+                match nn {
+                    0x9E => {
+                        //  Ex9E - SKP Vx
+                        if self.keyboard[self.registers[x] as usize] {
+                            self.pc += 2;
+                        }
+                    }
+                    0xA1 => {
+                        // ExA1 - SKNP Vx
+                        if !self.keyboard[self.registers[x] as usize] {
+                            self.pc += 2;
+                        }
+                    }
+                    _ => {
+                        unmatched_instruction(instr);
+                    }
+                }
+            }
             _ => {
                 unmatched_instruction(instr);
             }
         }
-
         //println!("pc = {:04x}", self.pc);
     }
 }

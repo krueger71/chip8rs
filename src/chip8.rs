@@ -319,6 +319,71 @@ impl Chip8 {
                     }
                 }
             }
+            0xF => {
+                match nn {
+                    0x07 => {
+                        // Fx07 - LD Vx, DT
+                        self.registers[x] = self.dt;
+                    }
+                    0x0A => {
+                        //  Fx0A - LD Vx, K
+                        for (key, pressed) in self.keyboard.iter().enumerate() {
+                            if *pressed {
+                                self.registers[x] = key as u8;
+                                break;
+                            } else {
+                                self.pc -= 2; // Undo increment to next instruction (repeat this instruction)
+                            }
+                        }
+                    }
+                    0x15 => {
+                        // Fx15 - LD DT, Vx
+                        self.dt = self.registers[x];
+                    }
+                    0x18 => {
+                        // Fx18 - LD ST, Vx
+                        self.st = self.registers[x];
+                    }
+                    0x1E => {
+                        //  Fx1E - ADD I, Vx
+                        self.i += self.registers[x] as usize;
+                    }
+                    0x29 => {
+                        //  Fx29 - LD F, Vx
+                        self.i = (self.registers[x] * 5) as usize; // Fonts are loaded at address 0x0 and are 5 bytes in size
+                    }
+                    0x33 => {
+                        // Fx33 - LD B, Vx
+                        let val = self.registers[x] as u16;
+                        self.memory[self.i] = (val % 1000 / 100) as u8;
+                        self.memory[self.i + 1] = (val % 100 / 10) as u8;
+                        self.memory[self.i + 2] = (val % 10) as u8;
+                        #[cfg(debug_assertions)]
+                        eprintln!(
+                            "#### {} -> {} {} {}",
+                            val,
+                            self.memory[self.i],
+                            self.memory[self.i + 1],
+                            self.memory[self.i + 2]
+                        );
+                    }
+                    0x55 => {
+                        // Fx55 - LD [I], Vx. Store regs in memory
+                        for r in 0..x + 1 {
+                            self.memory[self.i + r] = self.registers[r];
+                        }
+                    }
+                    0x65 => {
+                        // Fx65 - LD Vx, [I]. Load regs from memory
+                        for r in 0..x + 1 {
+                            self.registers[r] = self.memory[self.i + r];
+                        }
+                    }
+                    _ => {
+                        unmatched_instruction(instr);
+                    }
+                }
+            }
             _ => {
                 unmatched_instruction(instr);
             }
@@ -329,5 +394,5 @@ impl Chip8 {
 
 /// Handle instruction not decoded
 fn unmatched_instruction(instr: u16) {
-    eprintln!("instr = {:04x} not decoded!", instr);
+    panic!("instr = {:04x} not decoded!", instr);
 }

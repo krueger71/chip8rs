@@ -230,7 +230,7 @@ impl Chip8 {
                     }
                     0xE => {
                         // 8XYE - SHL VX. Set VF to MSB and shift value in VX left one bit
-                        self.registers[0xF] = self.registers[x] & 0b1000_0000;
+                        self.registers[0xF] = self.registers[x] >> 7;
                         self.registers[x] <<= 1;
                     }
                     _ => {

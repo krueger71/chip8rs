@@ -178,14 +178,17 @@ impl Chip8 {
                     1 => {
                         // 8XY1 - OR VX, VY. Store value of VX OR VY in VX
                         self.registers[x] |= self.registers[y];
+                        self.registers[0xF] = 0; // QUIRK
                     }
                     2 => {
                         // 8XY2 - AND VX, VY. Store value of VX AND VY in VX
                         self.registers[x] &= self.registers[y];
+                        self.registers[0xF] = 0; // QUIRK
                     }
                     3 => {
                         // 8XY3 - XOR VX, VY. Store value of VX XOR VY in VX
                         self.registers[x] ^= self.registers[y];
+                        self.registers[0xF] = 0; // QUIRK
                     }
                     4 => {
                         // 8XY4 - ADD VX, VY. Store value of VX + VY in VX with overflow status in VF
@@ -213,8 +216,11 @@ impl Chip8 {
                     }
                     6 => {
                         // 8XY6 - SHR VX. Set VF to LSB and shift value in VX right one bit
-                        self.registers[0xF] = self.registers[x] & 1;
-                        self.registers[x] >>= 1;
+                        // remember that VX can be VF!
+                        //self.registers[x] = self.registers[y]; // QUIRK
+                        let val = self.registers[x];
+                        self.registers[x] = val >> 1;
+                        self.registers[0xF] = val & 1;
                     }
                     7 => {
                         // 8XY7 - SUBN VX, VY. Store value of VY - VX in VX with overflow status in VF
@@ -230,8 +236,11 @@ impl Chip8 {
                     }
                     0xE => {
                         // 8XYE - SHL VX. Set VF to MSB and shift value in VX left one bit
-                        self.registers[0xF] = self.registers[x] >> 7;
-                        self.registers[x] <<= 1;
+                        // remember that VX can be VF!
+                        //self.registers[x] = self.registers[y]; // QUIRK
+                        let val = self.registers[x];
+                        self.registers[x] = val << 1;
+                        self.registers[0xF] = 1 & (val >> 7);
                     }
                     _ => {
                         unmatched_instruction(instr);
@@ -276,9 +285,18 @@ impl Chip8 {
                 // Sprites wrap-around immediately in this implementation, which is probably incorrect
 
                 for (dy, byte) in sprite.iter().enumerate() {
+                    if (py + dy) >= DISPLAY_HEIGHT {
+                        // QUIRK
+                        break;
+                    }
+
                     for dx in 0..8 {
-                        let old =
-                            self.display[(py + dy) % DISPLAY_HEIGHT][(px + dx) % DISPLAY_WIDTH];
+                        if (px + dx) >= DISPLAY_WIDTH {
+                            // QUIRK
+                            break;
+                        }
+
+                        let old = self.display[py + dy][px + dx];
                         let mut new = ((byte >> (7 - dx)) & 1) == 1;
 
                         if new {
@@ -287,8 +305,7 @@ impl Chip8 {
                                 self.registers[0xF] = 1;
                             }
 
-                            self.display[(py + dy) % DISPLAY_HEIGHT][(px + dx) % DISPLAY_WIDTH] =
-                                new;
+                            self.display[py + dy][px + dx] = new;
                             self.display_update = true;
                         }
                     }
@@ -327,13 +344,18 @@ impl Chip8 {
                     }
                     0x0A => {
                         //  Fx0A - LD Vx, K
+                        let mut wait = true;
                         for (key, pressed) in self.keyboard.iter().enumerate() {
                             if *pressed {
                                 self.registers[x] = key as u8;
+                                wait = false;
+                                self.keyboard[key] = false;
                                 break;
-                            } else {
-                                self.pc -= 2; // Undo increment to next instruction (repeat this instruction)
                             }
+                        }
+
+                        if wait {
+                            self.pc -= 2;
                         }
                     }
                     0x15 => {
@@ -370,13 +392,15 @@ impl Chip8 {
                     0x55 => {
                         // Fx55 - LD [I], Vx. Store regs in memory
                         for r in 0..x + 1 {
-                            self.memory[self.i + r] = self.registers[r];
+                            self.memory[self.i] = self.registers[r];
+                            self.i += 1; // QUIRK
                         }
                     }
                     0x65 => {
                         // Fx65 - LD Vx, [I]. Load regs from memory
                         for r in 0..x + 1 {
-                            self.registers[r] = self.memory[self.i + r];
+                            self.registers[r] = self.memory[self.i];
+                            self.i += 1; // QUIRK
                         }
                     }
                     _ => {

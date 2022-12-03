@@ -16,7 +16,7 @@ struct Cli {
     #[arg(short, long, default_value_t = 60)]
     fps: u16,
     /// Instruction multiplier (instructions per frame)
-    #[arg(short, long, default_value_t = 10)]
+    #[arg(short, long, default_value_t = 20)]
     mul: u16,
     /// Scale of display
     #[arg(short, long, default_value_t = 10)]

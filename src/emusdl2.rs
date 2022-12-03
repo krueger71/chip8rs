@@ -18,7 +18,7 @@ pub struct EmuSdl2 {
     chip8: Chip8,
     /// Frames per second. 60 is the default
     fps: u16,
-    /// Target instructions per second as multiplier of fps. 10 is the recommended default
+    /// Target instructions per second as multiplier of fps. 20 is the recommended default
     mul: u16,
     /// Scale display by this number. Original display is 64x32 pixels. 10 or more is the recommended default
     scale: u8,
@@ -109,6 +109,10 @@ impl EmuSdl2 {
             // Step the Chip8 mul times
             for _ in 0..self.mul {
                 self.chip8.step();
+
+                if self.chip8.display_update {
+                    break; // QUIRK
+                }
             }
 
             // Decrement delay timer if non-zero

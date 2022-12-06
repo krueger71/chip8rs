@@ -4,7 +4,10 @@ use std::{
 };
 
 use crate::chip8::{Chip8, DISPLAY_HEIGHT, DISPLAY_WIDTH};
-use sdl2::audio::{AudioCallback, AudioSpecDesired};
+use sdl2::{
+    audio::{AudioCallback, AudioSpecDesired, AudioStatus},
+    render::BlendMode,
+};
 use sdl2::{
     event::Event,
     keyboard::{Keycode, Scancode},
@@ -22,16 +25,33 @@ pub struct EmuSdl2 {
     mul: u16,
     /// Scale display by this number. Original display is 64x32 pixels. 10 or more is the recommended default
     scale: u8,
+    /// Foreground color
+    color: u32,
+    /// Background color
+    background: u32,
+    /// Pitch of buzzer
+    pitch: u16,
 }
 
 impl EmuSdl2 {
     /// Create a new instance passing in binary program code and options
-    pub fn new(program: Vec<u8>, fps: u16, mul: u16, scale: u8) -> Self {
+    pub fn new(
+        program: Vec<u8>,
+        fps: u16,
+        mul: u16,
+        scale: u8,
+        color: u32,
+        background: u32,
+        pitch: u16,
+    ) -> Self {
         EmuSdl2 {
             chip8: Chip8::new(program),
             fps,
             mul,
             scale,
+            color,
+            background,
+            pitch,
         }
     }
 
@@ -59,6 +79,9 @@ impl EmuSdl2 {
             .set_logical_size(DISPLAY_WIDTH as u32, DISPLAY_HEIGHT as u32)
             .unwrap();
 
+        // Support alpha blending
+        canvas.set_blend_mode(BlendMode::Blend);
+
         println!(
             "{:?}, default_pixel_format: {:?}, scale: {:?}, logical_size: {:?}, output_size: {:?}",
             canvas.info(),
@@ -81,7 +104,7 @@ impl EmuSdl2 {
             .open_playback(None, &desired_spec, |spec| {
                 // initialize the audio callback
                 SquareWave {
-                    phase_inc: 220.0 / spec.freq as f32,
+                    phase_inc: self.pitch as f32 / spec.freq as f32,
                     phase: 0.0,
                     volume: 0.25,
                 }
@@ -148,19 +171,31 @@ impl EmuSdl2 {
 
             // Decrement sound timer if non-zero and play sound
             if self.chip8.st > 0 {
-                device.resume();
+                if device.status() != AudioStatus::Playing {
+                    device.resume();
+                }
                 self.chip8.st -= 1;
             } else {
-                device.pause();
+                if device.status() != AudioStatus::Paused {
+                    device.pause();
+                }
             }
 
             // Draw display if Chip8 indicates display is updated
             if self.chip8.display_update {
-                // TODO Make background color an option
-                canvas.set_draw_color(Color::RGB(32, 32, 32));
+                canvas.set_draw_color(Color::RGBA(
+                    ((self.background & 0xff0000) >> 16) as u8,
+                    ((self.background & 0x00ff00) >> 8) as u8,
+                    (self.background & 0x0000ff) as u8,
+                    ((self.background & 0xff000000) >> 24) as u8,
+                ));
                 canvas.clear();
-                // TODO Make foreground color an option
-                canvas.set_draw_color(Color::RGB(102, 255, 102));
+                canvas.set_draw_color(Color::RGBA(
+                    ((self.color & 0xff0000) >> 16) as u8,
+                    ((self.color & 0x00ff00) >> 8) as u8,
+                    (self.color & 0x0000ff) as u8,
+                    ((self.color & 0xff000000) >> 24) as u8,
+                ));
 
                 for y in 0..DISPLAY_HEIGHT {
                     for x in 0..DISPLAY_WIDTH {

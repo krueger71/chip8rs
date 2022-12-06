@@ -10,5 +10,6 @@ version = "0.1.0"
 
 [dependencies]
 clap = {version = "*", features = ["derive"]}
+clap-num = "*"
 rand = "*"
 sdl2 = "*"

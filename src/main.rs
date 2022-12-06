@@ -4,6 +4,7 @@ mod emusdl2;
 use std::path::PathBuf;
 
 use clap::Parser;
+use clap_num::maybe_hex;
 use emusdl2::EmuSdl2;
 
 #[derive(Debug, Parser)]
@@ -21,6 +22,15 @@ struct Cli {
     /// Scale of display
     #[arg(short, long, default_value_t = 10)]
     scale: u8,
+    /// Foreground color. Format ARGB8888 (hex possible, e.g. 0xff0000ff)
+    #[arg(short, long, value_parser=maybe_hex::<u32>, default_value_t = 0xff33ff00)]
+    color: u32,
+    /// Background color. Format ARGB8888 (hex possible, e.g. 0xff111111)
+    #[arg(short, long, value_parser=maybe_hex::<u32>, default_value_t = 0xff111111)]
+    background: u32,
+    /// Pitch of buzzer in Hz
+    #[arg(short, long, default_value_t = 220)]
+    pitch: u16,
 }
 
 fn main() {
@@ -29,6 +39,14 @@ fn main() {
     println!("{:?}", cli);
 
     let program = std::fs::read(&cli.program).expect("could not read file");
-    let mut emusdl = EmuSdl2::new(program, cli.fps, cli.mul, cli.scale);
+    let mut emusdl = EmuSdl2::new(
+        program,
+        cli.fps,
+        cli.mul,
+        cli.scale,
+        cli.color,
+        cli.background,
+        cli.pitch,
+    );
     emusdl.run();
 }

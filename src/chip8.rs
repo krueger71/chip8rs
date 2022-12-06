@@ -38,7 +38,6 @@ pub const KEYBOARD_SIZE: usize = 16;
 
 /// The virtual machine for Chip8
 #[derive(Debug)]
-#[allow(dead_code)]
 pub struct Chip8 {
     /// RAM
     pub memory: [u8; MEMORY_SIZE],
@@ -61,8 +60,6 @@ pub struct Chip8 {
     pub display: [[bool; DISPLAY_WIDTH]; DISPLAY_HEIGHT],
     /// Display has been updated. Redraw the display on target and set to false
     pub display_update: bool,
-    /// Sound should play
-    pub play_sound: bool,
     /// Keyboard input as array of bool
     pub keyboard: [bool; KEYBOARD_SIZE],
 }
@@ -85,7 +82,6 @@ impl Chip8 {
             stack: [0; STACK_SIZE],
             display: [[false; DISPLAY_WIDTH]; DISPLAY_HEIGHT],
             display_update: false,
-            play_sound: false,
             keyboard: [false; KEYBOARD_SIZE],
         }
     }

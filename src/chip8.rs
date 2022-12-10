@@ -1,4 +1,5 @@
 //! A Chip8 model
+use crate::chip8::Instruction::*;
 
 /// Memory size in bytes
 const MEMORY_SIZE: usize = 4096;
@@ -86,11 +87,20 @@ impl Chip8 {
         }
     }
 
+    /// Fetch, decode and execute one instruction
     pub fn step(&mut self) {
-        let instr = (self.memory[self.pc] as u16) << 8 | (self.memory[1 + self.pc] as u16);
-        self.pc += 2;
+        let instr = self.fetch();
+        let instr = Chip8::decode(instr);
+        self.execute(instr);
+    }
 
-        // 0xIXYN,0x__NN,0x_NNN
+    /// Fetch one instruction from memory at current program counter
+    fn fetch(&self) -> u16 {
+        (self.memory[self.pc] as u16) << 8 | (self.memory[1 + self.pc] as u16)
+    }
+
+    /// Decode an instruction
+    fn decode(instr: u16) -> Instruction {
         let i = ((instr & 0xF000) >> 12) as u8;
         let x = ((instr & 0x0F00) >> 8) as usize;
         let y = ((instr & 0x00F0) >> 4) as usize;
@@ -98,178 +108,170 @@ impl Chip8 {
         let nn = (instr & 0x00FF) as u8;
         let nnn = instr & 0x0FFF;
 
-        #[cfg(debug_assertions)]
-        eprintln!(
-            "instr = {:04x}, i = {:x}, x = {:x}, y = {:x}, n = {:x}, nn = {:02x}, nnn = {:03x}, pc = {:04x}",
-            instr, i, x, y, n, nn, nnn, self.pc
-        );
-
         match i {
-            0 => {
-                match nnn {
-                    0x0E0 => {
-                        // 00E0 - CLS. Clear the screen
-                        self.display = [[false; DISPLAY_WIDTH]; DISPLAY_HEIGHT];
-                        self.display_update = true;
-                    }
-                    0x0EE => {
-                        // 00EE - RET. Return from subroutine
-                        self.pc = self.stack[self.sp];
-                        self.sp -= 1;
-                    }
-                    _ => {
-                        unmatched_instruction(instr);
-                    }
-                }
+            0 => match nnn {
+                0x0E0 => Cls,
+                0x0EE => Ret,
+                _ => Sys(nnn),
+            },
+            1 => Jmp(nnn),
+            2 => Call(nnn),
+            3 => Skeb(x, nn),
+            4 => Skneb(x, nn),
+            5 => Ske(x, y),
+            6 => Ldb(x, nn),
+            7 => Addb(x, nn),
+            8 => match n {
+                0 => Ld(x, y),
+                1 => Or(x, y),
+                2 => And(x, y),
+                3 => Xor(x, y),
+                4 => Add(x, y),
+                5 => Sub(x, y),
+                6 => Shr(x, y),
+                7 => Subr(x, y),
+                0xE => Shl(x, y),
+                _ => Err(instr),
+            },
+            9 => Skne(x, y),
+            0xA => Ldi(nnn),
+            0xB => Jmpz(nnn),
+            0xC => Rnd(x, nn),
+            0xD => Draw(x, y, n),
+            0xE => match nn {
+                0x9E => Skp(x),
+                0xA1 => Sknp(x),
+                _ => Err(instr),
+            },
+            0xF => match nn {
+                0x07 => Ldft(x),
+                0x0A => Ldkp(x),
+                0x15 => Ldtt(x),
+                0x18 => Ldst(x),
+                0x1E => Addi(x),
+                0x29 => Font(x),
+                0x33 => Bcd(x),
+                0x55 => Sreg(x),
+                0x65 => Lreg(x),
+                _ => Err(instr),
+            },
+            _ => Err(instr),
+        }
+    }
+
+    /// Execute one instruction
+    fn execute(&mut self, instr: Instruction) {
+        #[cfg(debug_assertions)]
+        eprintln!("pc: {} instr: {:04X?}", self.pc, instr);
+        // Increment program counter before as a default for most instructions
+        self.pc += 2;
+
+        match instr {
+            Sys(_) => {}
+            Cls => {
+                self.display = [[false; DISPLAY_WIDTH]; DISPLAY_HEIGHT];
+                self.display_update = true;
             }
-            1 => {
-                // 1NNN - JP. Jump to address NNN
-                self.pc = nnn as usize;
-            }
-            2 => {
-                // 2NNN - CALL. Call subroutine at address NNN
-                self.sp += 1;
+            Call(nnn) => {
                 self.stack[self.sp] = self.pc;
+                self.sp += 1;
                 self.pc = nnn as usize;
             }
-            3 => {
-                // 3XNN - SE VX, byte. Skip next instruction if VX == NN
+            Ret => {
+                self.sp -= 1;
+                self.pc = self.stack[self.sp];
+            }
+            Jmp(nnn) => {
+                self.pc = nnn as usize;
+            }
+            Skeb(x, nn) => {
                 if self.registers[x] == nn {
                     self.pc += 2;
                 }
             }
-            4 => {
-                // 4XNN - SNE VX, byte. Skip next instruction if VX != NN
+            Skneb(x, nn) => {
                 if self.registers[x] != nn {
                     self.pc += 2;
                 }
             }
-            5 => {
-                // 5XY0 - SE VX, VY. Skip next instruction if VX == VY
-                match n {
-                    0 => {
-                        if self.registers[x] == self.registers[y] {
-                            self.pc += 2;
-                        }
-                    }
-                    _ => {
-                        unmatched_instruction(instr);
-                    }
+            Ske(x, y) => {
+                if self.registers[x] == self.registers[y] {
+                    self.pc += 2;
                 }
             }
-            6 => {
-                // 6XNN - LD VX, byte. Set register VX to NN
+            Skne(x, y) => {
+                if self.registers[x] != self.registers[y] {
+                    self.pc += 2;
+                }
+            }
+            Ldb(x, nn) => {
                 self.registers[x] = nn;
             }
-            7 => {
-                // 7XNN - ADD VX, byte. Add NN to register VX
+            Addb(x, nn) => {
                 self.registers[x] = (self.registers[x] as u16 + nn as u16) as u8;
             }
-            8 => {
-                match n {
-                    0 => {
-                        // 8XY0 - LD VX, VY. Store value of VY in VX
-                        self.registers[x] = self.registers[y];
-                    }
-                    1 => {
-                        // 8XY1 - OR VX, VY. Store value of VX OR VY in VX
-                        self.registers[x] |= self.registers[y];
-                        //self.registers[0xF] = 0; // QUIRK
-                    }
-                    2 => {
-                        // 8XY2 - AND VX, VY. Store value of VX AND VY in VX
-                        self.registers[x] &= self.registers[y];
-                        //self.registers[0xF] = 0; // QUIRK
-                    }
-                    3 => {
-                        // 8XY3 - XOR VX, VY. Store value of VX XOR VY in VX
-                        self.registers[x] ^= self.registers[y];
-                        //self.registers[0xF] = 0; // QUIRK
-                    }
-                    4 => {
-                        // 8XY4 - ADD VX, VY. Store value of VX + VY in VX with overflow status in VF
-                        let (result, overflow) =
-                            self.registers[x].overflowing_add(self.registers[y]);
-                        self.registers[x] = result;
+            Ld(x, y) => {
+                self.registers[x] = self.registers[y];
+            }
+            Or(x, y) => {
+                self.registers[x] |= self.registers[y];
+            }
+            And(x, y) => {
+                self.registers[x] &= self.registers[y];
+            }
+            Xor(x, y) => {
+                self.registers[x] ^= self.registers[y];
+            }
+            Add(x, y) => {
+                let (result, overflow) = self.registers[x].overflowing_add(self.registers[y]);
+                self.registers[x] = result;
 
-                        if overflow {
-                            self.registers[0xF] = 1;
-                        } else {
-                            self.registers[0xF] = 0;
-                        }
-                    }
-                    5 => {
-                        // 8XY5 - SUB VX, VY. Store value of VX - VY in VX with overflow status in VF
-                        let (result, overflow) =
-                            self.registers[x].overflowing_sub(self.registers[y]);
-                        self.registers[x] = result;
-
-                        if overflow {
-                            self.registers[0xF] = 0;
-                        } else {
-                            self.registers[0xF] = 1;
-                        }
-                    }
-                    6 => {
-                        // 8XY6 - SHR VX. Set VF to LSB and shift value in VX right one bit
-                        // remember that VX can be VF!
-                        //self.registers[x] = self.registers[y]; // QUIRK
-                        let val = self.registers[x];
-                        self.registers[x] = val >> 1;
-                        self.registers[0xF] = val & 1;
-                    }
-                    7 => {
-                        // 8XY7 - SUBN VX, VY. Store value of VY - VX in VX with overflow status in VF
-                        let (result, overflow) =
-                            self.registers[y].overflowing_sub(self.registers[x]);
-                        self.registers[x] = result;
-
-                        if overflow {
-                            self.registers[0xF] = 0;
-                        } else {
-                            self.registers[0xF] = 1;
-                        }
-                    }
-                    0xE => {
-                        // 8XYE - SHL VX. Set VF to MSB and shift value in VX left one bit
-                        // remember that VX can be VF!
-                        //self.registers[x] = self.registers[y]; // QUIRK
-                        let val = self.registers[x];
-                        self.registers[x] = val << 1;
-                        self.registers[0xF] = 1 & (val >> 7);
-                    }
-                    _ => {
-                        unmatched_instruction(instr);
-                    }
+                if overflow {
+                    self.registers[0xF] = 1;
+                } else {
+                    self.registers[0xF] = 0;
                 }
             }
-            9 => {
-                // 9XY0 - SNE VX, VY. Skip next instruction if VX != VY
-                match n {
-                    0 => {
-                        if self.registers[x] != self.registers[y] {
-                            self.pc += 2;
-                        }
-                    }
-                    _ => {
-                        unmatched_instruction(instr);
-                    }
+            Sub(x, y) => {
+                let (result, overflow) = self.registers[x].overflowing_sub(self.registers[y]);
+                self.registers[x] = result;
+
+                if overflow {
+                    self.registers[0xF] = 0;
+                } else {
+                    self.registers[0xF] = 1;
                 }
             }
-            0xA => {
-                // ANNN - LD I, addr. Set index register I to address
+            Subr(x, y) => {
+                let (result, overflow) = self.registers[y].overflowing_sub(self.registers[x]);
+                self.registers[x] = result;
+
+                if overflow {
+                    self.registers[0xF] = 0;
+                } else {
+                    self.registers[0xF] = 1;
+                }
+            }
+            Shr(x, _y) => {
+                let val = self.registers[x];
+                self.registers[x] = val >> 1;
+                self.registers[0xF] = val & 1;
+            }
+            Shl(x, _y) => {
+                let val = self.registers[x];
+                self.registers[x] = val << 1;
+                self.registers[0xF] = 1 & (val >> 7);
+            }
+            Ldi(nnn) => {
                 self.i = nnn as usize;
             }
-            0xB => {
-                // BNNN - JP V0, addr. Jump to location nnn + V0
+            Jmpz(nnn) => {
                 self.pc = (nnn + self.registers[0] as u16) as usize;
             }
-            0xC => {
-                // CXNN - RND Vx, byte. Set VX to random number AND NN
+            Rnd(x, nn) => {
                 self.registers[x] = rand::random::<u8>() & nn;
             }
-            0xD => {
-                // DXYN - DRW VX, VY, nibble. Draw n-byte sprite at X,Y with collision detection using XOR
+            Draw(x, y, n) => {
                 let px = (self.registers[x] % (DISPLAY_WIDTH as u8)) as usize;
                 let py = (self.registers[y] % (DISPLAY_HEIGHT as u8)) as usize;
                 let idx = self.i as usize;
@@ -313,106 +315,153 @@ impl Chip8 {
                     px, py, n, self.i, sprite
                 );
             }
-            0xE => {
-                match nn {
-                    0x9E => {
-                        //  Ex9E - SKP Vx
-                        if self.keyboard[self.registers[x] as usize] {
-                            self.pc += 2;
-                        }
-                    }
-                    0xA1 => {
-                        // ExA1 - SKNP Vx
-                        if !self.keyboard[self.registers[x] as usize] {
-                            self.pc += 2;
-                        }
-                    }
-                    _ => {
-                        unmatched_instruction(instr);
-                    }
+            Skp(x) => {
+                if self.keyboard[self.registers[x] as usize] {
+                    self.pc += 2;
                 }
             }
-            0xF => {
-                match nn {
-                    0x07 => {
-                        // Fx07 - LD Vx, DT
-                        self.registers[x] = self.dt;
+            Sknp(x) => {
+                if !self.keyboard[self.registers[x] as usize] {
+                    self.pc += 2;
+                }
+            }
+            Ldft(x) => {
+                self.registers[x] = self.dt;
+            }
+            Ldtt(x) => {
+                self.dt = self.registers[x];
+            }
+            Ldst(x) => {
+                self.st = self.registers[x];
+            }
+            Ldkp(x) => {
+                let mut wait = true;
+                for (key, pressed) in self.keyboard.iter().enumerate() {
+                    if *pressed {
+                        self.registers[x] = key as u8;
+                        wait = false;
+                        self.keyboard[key] = false;
+                        break;
                     }
-                    0x0A => {
-                        //  Fx0A - LD Vx, K
-                        let mut wait = true;
-                        for (key, pressed) in self.keyboard.iter().enumerate() {
-                            if *pressed {
-                                self.registers[x] = key as u8;
-                                wait = false;
-                                self.keyboard[key] = false;
-                                break;
-                            }
-                        }
+                }
 
-                        if wait {
-                            self.pc -= 2;
-                        }
-                    }
-                    0x15 => {
-                        // Fx15 - LD DT, Vx
-                        self.dt = self.registers[x];
-                    }
-                    0x18 => {
-                        // Fx18 - LD ST, Vx
-                        self.st = self.registers[x];
-                    }
-                    0x1E => {
-                        //  Fx1E - ADD I, Vx
-                        self.i += self.registers[x] as usize;
-                    }
-                    0x29 => {
-                        //  Fx29 - LD F, Vx
-                        self.i = (self.registers[x] * 5) as usize; // Fonts are loaded at address 0x0 and are 5 bytes in size
-                    }
-                    0x33 => {
-                        // Fx33 - LD B, Vx
-                        let val = self.registers[x] as u16;
-                        self.memory[self.i] = (val % 1000 / 100) as u8;
-                        self.memory[self.i + 1] = (val % 100 / 10) as u8;
-                        self.memory[self.i + 2] = (val % 10) as u8;
-                        #[cfg(debug_assertions)]
-                        eprintln!(
-                            "#### {} -> {} {} {}",
-                            val,
-                            self.memory[self.i],
-                            self.memory[self.i + 1],
-                            self.memory[self.i + 2]
-                        );
-                    }
-                    0x55 => {
-                        // Fx55 - LD [I], Vx. Store regs in memory
-                        for r in 0..x + 1 {
-                            self.memory[self.i + r] = self.registers[r];
-                            //self.i += 1; // QUIRK
-                        }
-                    }
-                    0x65 => {
-                        // Fx65 - LD Vx, [I]. Load regs from memory
-                        for r in 0..x + 1 {
-                            self.registers[r] = self.memory[self.i + r];
-                            //self.i += 1; // QUIRK
-                        }
-                    }
-                    _ => {
-                        unmatched_instruction(instr);
-                    }
+                if wait {
+                    self.pc -= 2;
                 }
             }
-            _ => {
-                unmatched_instruction(instr);
+            Addi(x) => {
+                self.i += self.registers[x] as usize;
+            }
+            Font(x) => {
+                self.i = (self.registers[x] * 5) as usize;
+            }
+            Bcd(x) => {
+                let val = self.registers[x] as u16;
+                self.memory[self.i] = (val % 1000 / 100) as u8;
+                self.memory[self.i + 1] = (val % 100 / 10) as u8;
+                self.memory[self.i + 2] = (val % 10) as u8;
+                #[cfg(debug_assertions)]
+                eprintln!(
+                    "#### {} -> {} {} {}",
+                    val,
+                    self.memory[self.i],
+                    self.memory[self.i + 1],
+                    self.memory[self.i + 2]
+                );
+            }
+            Sreg(x) => {
+                for r in 0..x + 1 {
+                    self.memory[self.i + r] = self.registers[r];
+                    //self.i += 1; // QUIRK
+                }
+            }
+            Lreg(x) => {
+                for r in 0..x + 1 {
+                    self.registers[r] = self.memory[self.i + r];
+                    //self.i += 1; // QUIRK
+                }
+            }
+            Err(_) => {
+                panic!("Unimplemented instruction {:04X?}!", instr);
             }
         }
-        //println!("pc = {:04x}", self.pc);
     }
 }
 
-/// Handle instruction not decoded
-fn unmatched_instruction(instr: u16) {
-    panic!("instr = {:04x} not decoded!", instr);
+/// Instructions as enum in an effort to make instruction decoding and execution clearer.
+/// Match expressions and doc-comments will make coding easier.
+#[derive(Debug)]
+enum Instruction {
+    /// 0nnn - SYS addr. Jump to machine code at address (unused in practice).
+    Sys(u16),
+    /// 00E0 - CLS. Clear the screen.
+    Cls,
+    /// 00EE - RET. Return from subroutine.
+    Ret,
+    /// 1nnn - JMP addr. Jump to address.
+    Jmp(u16),
+    /// 2nnn - CALL addr. Call subroutine at address.
+    Call(u16),
+    /// 3xkk - SKEB Vx, byte. Skip next instruction if VX == byte.
+    Skeb(usize, u8),
+    /// 4xkk - SKNEB Vx, byte. Skip next instruction if VX != byte.
+    Skneb(usize, u8),
+    /// 5xy0 - SKE Vx, Vy. Skip next instruction if VX == VY.
+    Ske(usize, usize),
+    /// 9xy0 - SKNE Vx, Vy. Skip next instruction if VX != VY.
+    Skne(usize, usize),
+    /// 6xkk - LDB Vx, byte. Load register VX with byte.
+    Ldb(usize, u8),
+    /// 7xkk - ADDB Vx, byte. Add byte to VX (without overflow status).
+    Addb(usize, u8),
+    /// 8xy0 - LD Vx, Vy. Load register VX with register VY.
+    Ld(usize, usize),
+    /// 8xy1 - OR Vx, Vy. Set VX = VX OR VY.
+    Or(usize, usize),
+    /// 8xy2 - AND Vx, Vy. Set VX = VX AND VY.
+    And(usize, usize),
+    /// 8xy3 - XOR Vx, Vy. Set VX = VX XOR VY.
+    Xor(usize, usize),
+    /// 8xy4 - ADD Vx, Vy. Set VX = VX + VY with carry status in VF. Remember that VX can be the same as VF.
+    Add(usize, usize),
+    /// 8xy5 - SUB Vx, Vy. Set VX = VX - VY with borrow status in VF (not borrow means set). Remember that VX can be the same as VF.
+    Sub(usize, usize),
+    /// 8xy7 - SUBR Vx, Vy. Set VX = VY - VX with borrow status in VF (not borrow means set). Remember that VX can be the same as VF.
+    Subr(usize, usize),
+    /// 8xy6 - SHR Vx. Shift VX right with bit 0 before shift in VF. Remember that VX can be the same as VF. Instruction with quirks.
+    Shr(usize, usize),
+    /// 8xyE - SHL Vx. Shift VX left with bit 7 before shift in VF. Remember that VX can be the same as VF. Instruction with quirks.
+    Shl(usize, usize),
+    /// Annn - LD I. Set index register to nnn.
+    Ldi(u16),
+    /// Bnnn - JMPZ addr. Jump to nnn + V0.
+    Jmpz(u16),
+    /// Cxkk - RND Vx, byte. Set VX to (random number AND byte).
+    Rnd(usize, u8),
+    /// Dxyn - DRAW Vx, Vy, n. Draw sprite of height n from memory location I at location VX, VY using XOR and collision status in VF (if any bit is flipped from 1 to 0).
+    Draw(usize, usize, u8),
+    /// Ex9E - SKP Vx. Skip next instruction if key number in VX is pressed.
+    Skp(usize),
+    /// ExA1 - SKNP Vx. Skip next instruction if key number in VX is not pressed.
+    Sknp(usize),
+    /// Fx07 - LDFT Vx. Load VX with delay timer value.
+    Ldft(usize),
+    /// Fx0A - LDKP Vx. Wait for a keypress and load the key num into VX.
+    Ldkp(usize),
+    /// Fx15 - LDTT Vx. Set delay timer with value from VX.
+    Ldtt(usize),
+    /// Fx18 - LDST Vx. Set sound timer to value from VX.
+    Ldst(usize),
+    /// Fx1E - ADDI VX. Set I = I + VX
+    Addi(usize),
+    /// Fx29 - FONT Vx. Load I with font for key num in VX.
+    Font(usize),
+    /// Fx33 - BCD Vx. Store BCD value of VX in I, I+1 and I+2.
+    Bcd(usize),
+    /// Fx55 - SREG Vx. Store registers V0 to VX in memory starting at I.
+    Sreg(usize),
+    /// Fx65 - LREG Vx. Load register V0 to VX from memory starting at I.
+    Lreg(usize),
+    /// It's not an instruction. Something's wrong.
+    Err(u16),
 }

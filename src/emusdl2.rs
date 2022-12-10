@@ -175,10 +175,8 @@ impl EmuSdl2 {
                     device.resume();
                 }
                 self.chip8.st -= 1;
-            } else {
-                if device.status() != AudioStatus::Paused {
-                    device.pause();
-                }
+            } else if device.status() != AudioStatus::Paused {
+                device.pause();
             }
 
             // Draw display if Chip8 indicates display is updated
@@ -210,7 +208,7 @@ impl EmuSdl2 {
                 eprintln!("Display updated");
 
                 self.chip8.display_update = false; // Chip8 will set this to true whenever something changes on screen
-                continue; // We continue without waiting here since Vsync is on
+                continue; // We continue without waiting here since Vsync is on and there will be a re-draw of the screen
             }
 
             let sleep_duration =

@@ -106,7 +106,7 @@ impl Chip8 {
         let y = ((instr & 0x00F0) >> 4) as usize;
         let n = (instr & 0x000F) as u8;
         let nn = (instr & 0x00FF) as u8;
-        let nnn = instr & 0x0FFF;
+        let nnn = (instr & 0x0FFF) as usize;
 
         match i {
             0 => match nnn {
@@ -175,14 +175,14 @@ impl Chip8 {
             Call(nnn) => {
                 self.stack[self.sp] = self.pc;
                 self.sp += 1;
-                self.pc = nnn as usize;
+                self.pc = nnn;
             }
             Ret => {
                 self.sp -= 1;
                 self.pc = self.stack[self.sp];
             }
             Jmp(nnn) => {
-                self.pc = nnn as usize;
+                self.pc = nnn;
             }
             Skeb(x, nn) => {
                 if self.registers[x] == nn {
@@ -263,10 +263,10 @@ impl Chip8 {
                 self.registers[0xF] = 1 & (val >> 7);
             }
             Ldi(nnn) => {
-                self.i = nnn as usize;
+                self.i = nnn;
             }
             Jmpz(nnn) => {
-                self.pc = (nnn + self.registers[0] as u16) as usize;
+                self.pc = nnn + self.registers[0] as usize;
             }
             Rnd(x, nn) => {
                 self.registers[x] = rand::random::<u8>() & nn;
@@ -393,15 +393,15 @@ impl Chip8 {
 #[derive(Debug)]
 enum Instruction {
     /// 0nnn - SYS addr. Jump to machine code at address (unused in practice).
-    Sys(u16),
+    Sys(usize),
     /// 00E0 - CLS. Clear the screen.
     Cls,
     /// 00EE - RET. Return from subroutine.
     Ret,
     /// 1nnn - JMP addr. Jump to address.
-    Jmp(u16),
+    Jmp(usize),
     /// 2nnn - CALL addr. Call subroutine at address.
-    Call(u16),
+    Call(usize),
     /// 3xkk - SKEB Vx, byte. Skip next instruction if VX == byte.
     Skeb(usize, u8),
     /// 4xkk - SKNEB Vx, byte. Skip next instruction if VX != byte.
@@ -433,9 +433,9 @@ enum Instruction {
     /// 8xyE - SHL Vx. Shift VX left with bit 7 before shift in VF. Remember that VX can be the same as VF. Instruction with quirks.
     Shl(usize, usize),
     /// Annn - LD I. Set index register to nnn.
-    Ldi(u16),
+    Ldi(usize),
     /// Bnnn - JMPZ addr. Jump to nnn + V0.
-    Jmpz(u16),
+    Jmpz(usize),
     /// Cxkk - RND Vx, byte. Set VX to (random number AND byte).
     Rnd(usize, u8),
     /// Dxyn - DRAW Vx, Vy, n. Draw sprite of height n from memory location I at location VX, VY using XOR and collision status in VF (if any bit is flipped from 1 to 0).

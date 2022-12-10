@@ -210,6 +210,7 @@ impl EmuSdl2 {
                 eprintln!("Display updated");
 
                 self.chip8.display_update = false; // Chip8 will set this to true whenever something changes on screen
+                continue; // We continue without waiting here since Vsync is on
             }
 
             let sleep_duration =

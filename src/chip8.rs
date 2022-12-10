@@ -162,7 +162,10 @@ impl Chip8 {
     /// Execute one instruction
     fn execute(&mut self, instr: Instruction) {
         #[cfg(debug_assertions)]
-        eprintln!("pc: {} instr: {:04X?}", self.pc, instr);
+        eprintln!(
+            "pc: {:04X} instr: {:04X?} regs: {:04X?}",
+            self.pc, instr, self.registers
+        );
         // Increment program counter before as a default for most instructions
         self.pc += 2;
 

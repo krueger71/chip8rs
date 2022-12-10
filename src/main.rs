@@ -7,8 +7,13 @@ use clap::Parser;
 use clap_num::maybe_hex;
 use emusdl2::EmuSdl2;
 
+use crate::{
+    chip8::{Chip8, Quirks},
+    emusdl2::Options,
+};
+
 #[derive(Debug, Parser)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about)]
 /// A simple Chip8 emulator that uses SDL
 struct Cli {
     /// Path to the binary Chip8 program to run
@@ -31,6 +36,24 @@ struct Cli {
     /// Pitch of buzzer in Hz
     #[arg(short, long, default_value_t = 220)]
     pitch: u16,
+    /// Quirk: AND, OR, XOR reset VF to zero
+    #[arg(long)]
+    quirk_vf_reset: bool,
+    /// Quirk: Memory load/store registers operations increment I
+    #[arg(long)]
+    quirk_memory: bool,
+    /// Quirk: Only one draw operation per frame
+    #[arg(long)]
+    quirk_draw: bool,
+    /// Quirk: Drawing operations clip instead of wrap
+    #[arg(long)]
+    quirk_clipping: bool,
+    /// Quirk: Shifting operations use VY instead of only VX
+    #[arg(long)]
+    quirk_shifting: bool,
+    /// Quirk: Jump with offset operation BNNN will work as BXNN.
+    #[arg(long)]
+    quirk_jumping: bool,
 }
 
 fn main() {
@@ -39,14 +62,28 @@ fn main() {
     println!("{:?}", cli);
 
     let program = std::fs::read(&cli.program).expect("could not read file");
-    let mut emusdl = EmuSdl2::new(
-        program,
-        cli.fps,
-        cli.mul,
-        cli.scale,
-        cli.color,
-        cli.background,
-        cli.pitch,
-    );
+
+    let quirks = Quirks {
+        quirk_vf_reset: cli.quirk_vf_reset,
+        quirk_memory: cli.quirk_memory,
+        quirk_draw: cli.quirk_draw,
+        quirk_clipping: cli.quirk_clipping,
+        quirk_shifting: cli.quirk_shifting,
+        quirk_jumping: cli.quirk_jumping,
+    };
+
+    let chip8 = Chip8::new(program, quirks);
+
+    let options: Options = Options {
+        fps: cli.fps,
+        mul: cli.mul,
+        scale: cli.scale,
+        color: cli.color,
+        background: cli.background,
+        pitch: cli.pitch,
+    };
+
+    let mut emusdl = EmuSdl2::new(chip8, options);
+
     emusdl.run();
 }

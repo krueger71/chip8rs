@@ -33,25 +33,27 @@ pub struct EmuSdl2 {
     pitch: u16,
 }
 
+#[derive(Debug)]
+pub struct Options {
+    pub fps: u16,
+    pub mul: u16,
+    pub scale: u8,
+    pub color: u32,
+    pub background: u32,
+    pub pitch: u16,
+}
+
 impl EmuSdl2 {
     /// Create a new instance passing in binary program code and options
-    pub fn new(
-        program: Vec<u8>,
-        fps: u16,
-        mul: u16,
-        scale: u8,
-        color: u32,
-        background: u32,
-        pitch: u16,
-    ) -> Self {
+    pub fn new(chip8: Chip8, options: Options) -> Self {
         EmuSdl2 {
-            chip8: Chip8::new(program),
-            fps,
-            mul,
-            scale,
-            color,
-            background,
-            pitch,
+            chip8,
+            fps: options.fps,
+            mul: options.mul,
+            scale: options.scale,
+            color: options.color,
+            background: options.background,
+            pitch: options.pitch,
         }
     }
 

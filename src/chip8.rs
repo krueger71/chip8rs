@@ -38,7 +38,6 @@ const FONTS: [u8; FONTS_SIZE] = [
 pub const KEYBOARD_SIZE: usize = 16;
 
 /// The virtual machine for Chip8
-#[derive(Debug)]
 pub struct Chip8 {
     /// RAM
     pub memory: [u8; MEMORY_SIZE],
@@ -63,10 +62,28 @@ pub struct Chip8 {
     pub display_update: bool,
     /// Keyboard input as array of bool
     pub keyboard: [bool; KEYBOARD_SIZE],
+    /// Options/quirks
+    pub quirks: Quirks,
+}
+
+#[derive(Debug)]
+pub struct Quirks {
+    /// Quirk: AND, OR, XOR reset VF to zero
+    pub quirk_vf_reset: bool,
+    /// Quirk: Memory load/store registers operations increment I
+    pub quirk_memory: bool,
+    /// Quirk: Only one draw operation per frame
+    pub quirk_draw: bool,
+    /// Quirk: Drawing operations clip instead of wrap
+    pub quirk_clipping: bool,
+    /// Quirk: Shifting operations use VY instead of only VX
+    pub quirk_shifting: bool,
+    /// Quirk: Jump with offset operation BNNN will work as BXNN.
+    pub quirk_jumping: bool,
 }
 
 impl Chip8 {
-    pub fn new(program: Vec<u8>) -> Self {
+    pub fn new(program: Vec<u8>, quirks: Quirks) -> Self {
         let mut memory: [u8; MEMORY_SIZE] = [0; MEMORY_SIZE];
 
         memory[..FONTS_SIZE].copy_from_slice(&FONTS); // Load fonts from address 0x0000
@@ -84,6 +101,7 @@ impl Chip8 {
             display: [[false; DISPLAY_WIDTH]; DISPLAY_HEIGHT],
             display_update: false,
             keyboard: [false; KEYBOARD_SIZE],
+            quirks,
         }
     }
 

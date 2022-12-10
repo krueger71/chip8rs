@@ -174,17 +174,17 @@ impl Chip8 {
                     1 => {
                         // 8XY1 - OR VX, VY. Store value of VX OR VY in VX
                         self.registers[x] |= self.registers[y];
-                        self.registers[0xF] = 0; // QUIRK
+                        //self.registers[0xF] = 0; // QUIRK
                     }
                     2 => {
                         // 8XY2 - AND VX, VY. Store value of VX AND VY in VX
                         self.registers[x] &= self.registers[y];
-                        self.registers[0xF] = 0; // QUIRK
+                        //self.registers[0xF] = 0; // QUIRK
                     }
                     3 => {
                         // 8XY3 - XOR VX, VY. Store value of VX XOR VY in VX
                         self.registers[x] ^= self.registers[y];
-                        self.registers[0xF] = 0; // QUIRK
+                        //self.registers[0xF] = 0; // QUIRK
                     }
                     4 => {
                         // 8XY4 - ADD VX, VY. Store value of VX + VY in VX with overflow status in VF
@@ -388,15 +388,15 @@ impl Chip8 {
                     0x55 => {
                         // Fx55 - LD [I], Vx. Store regs in memory
                         for r in 0..x + 1 {
-                            self.memory[self.i] = self.registers[r];
-                            self.i += 1; // QUIRK
+                            self.memory[self.i + r] = self.registers[r];
+                            //self.i += 1; // QUIRK
                         }
                     }
                     0x65 => {
                         // Fx65 - LD Vx, [I]. Load regs from memory
                         for r in 0..x + 1 {
-                            self.registers[r] = self.memory[self.i];
-                            self.i += 1; // QUIRK
+                            self.registers[r] = self.memory[self.i + r];
+                            //self.i += 1; // QUIRK
                         }
                     }
                     _ => {

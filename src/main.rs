@@ -44,7 +44,7 @@ struct Cli {
     quirk_memory: bool,
     /// Quirk: Only one draw operation per frame
     #[arg(long)]
-    quirk_draw: bool,
+    quirk_display_wait: bool,
     /// Quirk: Drawing operations clip instead of wrap
     #[arg(long)]
     quirk_clipping: bool,
@@ -64,12 +64,12 @@ fn main() {
     let program = std::fs::read(&cli.program).expect("could not read file");
 
     let quirks = Quirks {
-        quirk_vf_reset: cli.quirk_vf_reset,
-        quirk_memory: cli.quirk_memory,
-        quirk_draw: cli.quirk_draw,
-        quirk_clipping: cli.quirk_clipping,
-        quirk_shifting: cli.quirk_shifting,
-        quirk_jumping: cli.quirk_jumping,
+        vf_reset: cli.quirk_vf_reset,
+        memory: cli.quirk_memory,
+        display_wait: cli.quirk_display_wait,
+        clipping: cli.quirk_clipping,
+        shifting: cli.quirk_shifting,
+        jumping: cli.quirk_jumping,
     };
 
     let chip8 = Chip8::new(program, quirks);

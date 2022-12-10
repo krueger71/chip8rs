@@ -161,8 +161,8 @@ impl EmuSdl2 {
             for _ in 0..self.mul {
                 self.chip8.step();
 
-                if self.chip8.display_update {
-                    break; // QUIRK
+                if self.chip8.quirks.display_wait && self.chip8.display_update {
+                    break;
                 }
             }
 
@@ -210,7 +210,6 @@ impl EmuSdl2 {
                 eprintln!("Display updated");
 
                 self.chip8.display_update = false; // Chip8 will set this to true whenever something changes on screen
-                continue; // We continue without waiting here since Vsync is on and there will be a re-draw of the screen
             }
 
             let sleep_duration =

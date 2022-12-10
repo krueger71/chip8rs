@@ -69,17 +69,17 @@ pub struct Chip8 {
 #[derive(Debug)]
 pub struct Quirks {
     /// Quirk: AND, OR, XOR reset VF to zero
-    pub quirk_vf_reset: bool,
+    pub vf_reset: bool,
     /// Quirk: Memory load/store registers operations increment I
-    pub quirk_memory: bool,
+    pub memory: bool,
     /// Quirk: Only one draw operation per frame
-    pub quirk_draw: bool,
+    pub display_wait: bool,
     /// Quirk: Drawing operations clip instead of wrap
-    pub quirk_clipping: bool,
-    /// Quirk: Shifting operations use VY instead of only VX
-    pub quirk_shifting: bool,
-    /// Quirk: Jump with offset operation BNNN will work as BXNN.
-    pub quirk_jumping: bool,
+    pub clipping: bool,
+    /// Quirk: Shifting operations use only VX instead of VY
+    pub shifting: bool,
+    /// Quirk: Jump with offset operation BNNN will work as BXNN
+    pub jumping: bool,
 }
 
 impl Chip8 {
@@ -235,12 +235,21 @@ impl Chip8 {
                 self.registers[x] = self.registers[y];
             }
             Or(x, y) => {
+                if self.quirks.vf_reset {
+                    self.registers[0xF] = 0;
+                }
                 self.registers[x] |= self.registers[y];
             }
             And(x, y) => {
+                if self.quirks.vf_reset {
+                    self.registers[0xF] = 0;
+                }
                 self.registers[x] &= self.registers[y];
             }
             Xor(x, y) => {
+                if self.quirks.vf_reset {
+                    self.registers[0xF] = 0;
+                }
                 self.registers[x] ^= self.registers[y];
             }
             Add(x, y) => {
@@ -273,13 +282,13 @@ impl Chip8 {
                     self.registers[0xF] = 1;
                 }
             }
-            Shr(x, _y) => {
-                let val = self.registers[x];
+            Shr(x, y) => {
+                let val = self.registers[if self.quirks.shifting { x } else { y }];
                 self.registers[x] = val >> 1;
                 self.registers[0xF] = val & 1;
             }
-            Shl(x, _y) => {
-                let val = self.registers[x];
+            Shl(x, y) => {
+                let val = self.registers[if self.quirks.shifting { x } else { y }];
                 self.registers[x] = val << 1;
                 self.registers[0xF] = 1 & (val >> 7);
             }
@@ -304,18 +313,17 @@ impl Chip8 {
                 // Sprites wrap-around immediately in this implementation, which is probably incorrect
 
                 for (dy, byte) in sprite.iter().enumerate() {
-                    if (py + dy) >= DISPLAY_HEIGHT {
-                        // QUIRK
+                    if self.quirks.clipping && (py + dy) >= DISPLAY_HEIGHT {
                         break;
                     }
 
                     for dx in 0..8 {
-                        if (px + dx) >= DISPLAY_WIDTH {
-                            // QUIRK
+                        if self.quirks.clipping && (px + dx) >= DISPLAY_WIDTH {
                             break;
                         }
 
-                        let old = self.display[py + dy][px + dx];
+                        let old =
+                            self.display[(py + dy) % DISPLAY_HEIGHT][(px + dx) % DISPLAY_WIDTH];
                         let mut new = ((byte >> (7 - dx)) & 1) == 1;
 
                         if new {
@@ -324,7 +332,8 @@ impl Chip8 {
                                 self.registers[0xF] = 1;
                             }
 
-                            self.display[py + dy][px + dx] = new;
+                            self.display[(py + dy) % DISPLAY_HEIGHT][(px + dx) % DISPLAY_WIDTH] =
+                                new;
                             self.display_update = true;
                         }
                     }
@@ -393,13 +402,19 @@ impl Chip8 {
             Sreg(x) => {
                 for r in 0..x + 1 {
                     self.memory[self.i + r] = self.registers[r];
-                    //self.i += 1; // QUIRK
+                }
+
+                if self.quirks.memory {
+                    self.i += x + 1;
                 }
             }
             Lreg(x) => {
                 for r in 0..x + 1 {
                     self.registers[r] = self.memory[self.i + r];
-                    //self.i += 1; // QUIRK
+                }
+
+                if self.quirks.memory {
+                    self.i += x + 1;
                 }
             }
             Err(_) => {

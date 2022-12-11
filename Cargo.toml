@@ -2,7 +2,7 @@
 authors = ["Fredrik Andersson <krueger71@users.noreply.github.com>"]
 description = "Chip8 Emulator"
 edition = "2021"
-license = "ISC"
+license = "MIT"
 name = "chip8rs"
 version = "0.1.0"
 

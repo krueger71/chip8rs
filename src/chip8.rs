@@ -296,7 +296,12 @@ impl Chip8 {
                 self.i = nnn;
             }
             Jmpz(nnn) => {
-                self.pc = nnn + self.registers[0] as usize;
+                if self.quirks.jumping {
+                    let x = nnn >> 8;
+                    self.pc = nnn + self.registers[x] as usize;
+                } else {
+                    self.pc = nnn + self.registers[0] as usize;
+                }
             }
             Rnd(x, nn) => {
                 self.registers[x] = rand::random::<u8>() & nn;
@@ -307,10 +312,6 @@ impl Chip8 {
                 let idx = self.i as usize;
                 let sprite = &self.memory[idx..(idx + n as usize)];
                 self.registers[0xF] = 0;
-
-                // Iterate over each individual bit in each byte of sprite
-                // Set each bit according to the rules for DXYN draw in display
-                // Sprites wrap-around immediately in this implementation, which is probably incorrect
 
                 for (dy, byte) in sprite.iter().enumerate() {
                     if self.quirks.clipping && (py + dy) >= DISPLAY_HEIGHT {
@@ -338,12 +339,6 @@ impl Chip8 {
                         }
                     }
                 }
-
-                #[cfg(debug_assertions)]
-                eprintln!(
-                    "DXYN px={} py={} n={} from i={:x} sprite={:02x?}",
-                    px, py, n, self.i, sprite
-                );
             }
             Skp(x) => {
                 if self.keyboard[self.registers[x] as usize] {
@@ -390,14 +385,6 @@ impl Chip8 {
                 self.memory[self.i] = (val % 1000 / 100) as u8;
                 self.memory[self.i + 1] = (val % 100 / 10) as u8;
                 self.memory[self.i + 2] = (val % 10) as u8;
-                #[cfg(debug_assertions)]
-                eprintln!(
-                    "#### {} -> {} {} {}",
-                    val,
-                    self.memory[self.i],
-                    self.memory[self.i + 1],
-                    self.memory[self.i + 2]
-                );
             }
             Sreg(x) => {
                 for r in 0..x + 1 {

@@ -1,8 +1,3 @@
-use std::{
-    thread::sleep,
-    time::{Duration, Instant},
-};
-
 use crate::chip8::{Chip8, DISPLAY_HEIGHT, DISPLAY_WIDTH};
 use sdl2::{
     audio::{AudioCallback, AudioSpecDesired, AudioStatus},
@@ -13,6 +8,10 @@ use sdl2::{
     keyboard::{Keycode, Scancode},
     pixels::Color,
     rect::Point,
+};
+use std::{
+    thread::sleep,
+    time::{Duration, Instant},
 };
 
 /// An emulator of the Chip8 model using SDL2 for keyboard input, video and sound
@@ -76,21 +75,76 @@ impl EmuSdl2 {
             .accelerated()
             .build()
             .unwrap();
+
+        // Support alpha blending
+        canvas.set_blend_mode(BlendMode::Blend);
+
+        let background_color = Color::RGBA(
+            ((self.background & 0xff0000) >> 16) as u8,
+            ((self.background & 0x00ff00) >> 8) as u8,
+            (self.background & 0x0000ff) as u8,
+            ((self.background & 0xff000000) >> 24) as u8,
+        );
+
+        let foreground_color = Color::RGBA(
+            ((self.color & 0xff0000) >> 16) as u8,
+            ((self.color & 0x00ff00) >> 8) as u8,
+            (self.color & 0x0000ff) as u8,
+            ((self.color & 0xff000000) >> 24) as u8,
+        );
+
+        // Create a grid as a texture
+        let texture_creator = canvas.texture_creator();
+        let mut grid = texture_creator
+            .create_texture_target(
+                texture_creator.default_pixel_format(),
+                (DISPLAY_WIDTH * self.scale as usize) as u32,
+                (DISPLAY_HEIGHT * self.scale as usize) as u32,
+            )
+            .unwrap();
+        grid.set_blend_mode(BlendMode::Blend);
+
+        canvas
+            .with_texture_canvas(&mut grid, |c| {
+                let mut grid_color = background_color;
+                grid_color.a = 0x22;
+                c.set_draw_color(grid_color);
+                // Draw horizontal lines
+                for y in 0..(DISPLAY_HEIGHT * self.scale as usize) {
+                    if y % (self.scale as usize) == 0 {
+                        c.draw_line(
+                            (0, y as i32),
+                            ((self.scale as usize * DISPLAY_WIDTH) as i32, y as i32),
+                        )
+                        .unwrap();
+                    }
+                }
+                // Draw vertical lines
+                for x in 0..(DISPLAY_WIDTH * self.scale as usize) {
+                    if x % (self.scale as usize) == 0 {
+                        c.draw_line(
+                            (x as i32, 0),
+                            (x as i32, (self.scale as usize * DISPLAY_HEIGHT) as i32),
+                        )
+                        .unwrap();
+                    }
+                }
+            })
+            .unwrap();
+
         // The logical size is set to the size of the Chip8 display. It makes it possible to draw single pixels at the correct position and get a scaled display automatically
         canvas
             .set_logical_size(DISPLAY_WIDTH as u32, DISPLAY_HEIGHT as u32)
             .unwrap();
 
-        // Support alpha blending
-        canvas.set_blend_mode(BlendMode::Blend);
-
         println!(
-            "{:?}, default_pixel_format: {:?}, scale: {:?}, logical_size: {:?}, output_size: {:?}",
+            "{:?}, default_pixel_format: {:?}, scale: {:?}, logical_size: {:?}, output_size: {:?}, render_target_supported: {:?}",
             canvas.info(),
             canvas.default_pixel_format(),
             canvas.scale(),
             canvas.logical_size(),
-            canvas.output_size().unwrap()
+            canvas.output_size().unwrap(),
+            canvas.render_target_supported()
         );
 
         // Audio
@@ -183,19 +237,9 @@ impl EmuSdl2 {
 
             // Draw display if Chip8 indicates display is updated
             if self.chip8.display_update {
-                canvas.set_draw_color(Color::RGBA(
-                    ((self.background & 0xff0000) >> 16) as u8,
-                    ((self.background & 0x00ff00) >> 8) as u8,
-                    (self.background & 0x0000ff) as u8,
-                    ((self.background & 0xff000000) >> 24) as u8,
-                ));
+                canvas.set_draw_color(background_color);
                 canvas.clear();
-                canvas.set_draw_color(Color::RGBA(
-                    ((self.color & 0xff0000) >> 16) as u8,
-                    ((self.color & 0x00ff00) >> 8) as u8,
-                    (self.color & 0x0000ff) as u8,
-                    ((self.color & 0xff000000) >> 24) as u8,
-                ));
+                canvas.set_draw_color(foreground_color);
 
                 for y in 0..DISPLAY_HEIGHT {
                     for x in 0..DISPLAY_WIDTH {
@@ -204,6 +248,10 @@ impl EmuSdl2 {
                         }
                     }
                 }
+
+                // Copy grid texture on top (could be configurable)
+                canvas.copy(&grid, None, None).unwrap();
+
                 canvas.present();
 
                 #[cfg(debug_assertions)]

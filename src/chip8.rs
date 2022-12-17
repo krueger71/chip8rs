@@ -309,7 +309,7 @@ impl Chip8 {
             Draw(x, y, n) => {
                 let px = (self.registers[x] % (DISPLAY_WIDTH as u8)) as usize;
                 let py = (self.registers[y] % (DISPLAY_HEIGHT as u8)) as usize;
-                let idx = self.i as usize;
+                let idx = self.i;
                 let sprite = &self.memory[idx..(idx + n as usize)];
                 self.registers[0xF] = 0;
 

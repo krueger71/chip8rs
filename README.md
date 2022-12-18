@@ -12,6 +12,9 @@ In [main.rs](src/main.rs) command line arguments are parsed and the emulator cre
 
 The purpose of the implementation is both to learn Rust and basic emulator programming.
 
+![Screenshot 1 - Blinky](screenshot1.png)
+![Screenshot 2 - Outlaw](screenshot2.png)
+
 ## References
 
 - [https://en.wikipedia.org/wiki/CHIP-8](https://en.wikipedia.org/wiki/CHIP-8)

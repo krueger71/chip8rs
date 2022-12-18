@@ -107,7 +107,7 @@ impl EmuSdl2 {
         canvas
             .with_texture_canvas(&mut grid, |c| {
                 let mut grid_color = background_color;
-                grid_color.a = 0x22;
+                grid_color.a = 0x1d;
                 c.set_draw_color(grid_color);
                 // Draw horizontal lines
                 for y in 0..(DISPLAY_HEIGHT * self.scale as usize) {

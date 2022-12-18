@@ -28,10 +28,10 @@ struct Cli {
     #[arg(short, long, default_value_t = 10)]
     scale: u8,
     /// Foreground color. Format ARGB8888 (hex possible, e.g. 0xff0000ff)
-    #[arg(short, long, value_parser=maybe_hex::<u32>, default_value_t = 0xff33ff00)]
+    #[arg(short, long, value_parser=maybe_hex::<u32>, default_value_t = 0xff222222)]
     color: u32,
     /// Background color. Format ARGB8888 (hex possible, e.g. 0xff111111)
-    #[arg(short, long, value_parser=maybe_hex::<u32>, default_value_t = 0xff111111)]
+    #[arg(short, long, value_parser=maybe_hex::<u32>, default_value_t = 0xff666f66)]
     background: u32,
     /// Pitch of buzzer in Hz
     #[arg(short, long, default_value_t = 220)]

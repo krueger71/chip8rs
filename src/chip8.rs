@@ -40,21 +40,21 @@ pub const KEYBOARD_SIZE: usize = 16;
 /// The virtual machine for Chip8
 pub struct Chip8 {
     /// RAM
-    pub memory: [u8; MEMORY_SIZE],
+    memory: [u8; MEMORY_SIZE],
     /// General purpose registers
-    pub registers: [u8; NUMBER_OF_REGISTERS],
+    registers: [u8; NUMBER_OF_REGISTERS],
     /// Delay timer register
     pub dt: u8,
     /// Sound timer register
     pub st: u8,
     /// Index register
-    pub i: usize,
+    i: usize,
     /// Program counter
-    pub pc: usize,
+    pc: usize,
     /// Stack pointer
-    pub sp: usize,
+    sp: usize,
     /// Stack
-    pub stack: [usize; STACK_SIZE],
+    stack: [usize; STACK_SIZE],
 
     /// Display "buffer" output as 2-d array of bool
     pub display: [[bool; DISPLAY_WIDTH]; DISPLAY_HEIGHT],
@@ -309,8 +309,7 @@ impl Chip8 {
             Draw(x, y, n) => {
                 let px = (self.registers[x] % (DISPLAY_WIDTH as u8)) as usize;
                 let py = (self.registers[y] % (DISPLAY_HEIGHT as u8)) as usize;
-                let idx = self.i as usize;
-                let sprite = &self.memory[idx..(idx + n as usize)];
+                let sprite = &self.memory[self.i..(self.i + n as usize)];
                 self.registers[0xF] = 0;
 
                 for (dy, byte) in sprite.iter().enumerate() {

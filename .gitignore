@@ -2,3 +2,4 @@
 /target
 /roms
 *.ch8
+.DS_Store

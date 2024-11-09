@@ -1,6 +1,7 @@
 use crate::chip8::{Chip8, DISPLAY_HEIGHT, DISPLAY_WIDTH};
 use sdl2::{
     audio::{AudioCallback, AudioSpecDesired, AudioStatus},
+    pixels::PixelFormatEnum,
     render::BlendMode,
 };
 use sdl2::{
@@ -97,7 +98,7 @@ impl EmuSdl2 {
         let texture_creator = canvas.texture_creator();
         let mut grid = texture_creator
             .create_texture_target(
-                texture_creator.default_pixel_format(),
+                PixelFormatEnum::ARGB8888,
                 (DISPLAY_WIDTH * self.scale as usize) as u32,
                 (DISPLAY_HEIGHT * self.scale as usize) as u32,
             )

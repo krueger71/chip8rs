@@ -130,7 +130,7 @@ impl Chip8 {
             0 => match nnn {
                 0x0E0 => Cls,
                 0x0EE => Ret,
-                _ => Sys(nnn),
+                _ => Sys,
             },
             1 => Jmp(nnn),
             2 => Call(nnn),
@@ -149,7 +149,7 @@ impl Chip8 {
                 6 => Shr(x, y),
                 7 => Subr(x, y),
                 0xE => Shl(x, y),
-                _ => Err(instr),
+                _ => Err,
             },
             9 => Skne(x, y),
             0xA => Ldi(nnn),
@@ -159,7 +159,7 @@ impl Chip8 {
             0xE => match nn {
                 0x9E => Skp(x),
                 0xA1 => Sknp(x),
-                _ => Err(instr),
+                _ => Err,
             },
             0xF => match nn {
                 0x07 => Ldft(x),
@@ -171,9 +171,9 @@ impl Chip8 {
                 0x33 => Bcd(x),
                 0x55 => Sreg(x),
                 0x65 => Lreg(x),
-                _ => Err(instr),
+                _ => Err,
             },
-            _ => Err(instr),
+            _ => Err,
         }
     }
 
@@ -188,7 +188,7 @@ impl Chip8 {
         self.pc += 2;
 
         match instr {
-            Sys(_) => {}
+            Sys => {}
             Cls => {
                 self.display = [[false; DISPLAY_WIDTH]; DISPLAY_HEIGHT];
                 self.display_update = true;
@@ -403,7 +403,7 @@ impl Chip8 {
                     self.i += x + 1;
                 }
             }
-            Err(_) => {
+            Err => {
                 panic!("Unimplemented instruction {:04X?}!", instr);
             }
         }
@@ -415,7 +415,7 @@ impl Chip8 {
 #[derive(Debug)]
 enum Instruction {
     /// 0nnn - SYS addr. Jump to machine code at address (unused in practice).
-    Sys(usize),
+    Sys,
     /// 00E0 - CLS. Clear the screen.
     Cls,
     /// 00EE - RET. Return from subroutine.
@@ -485,5 +485,5 @@ enum Instruction {
     /// Fx65 - LREG Vx. Load register V0 to VX from memory starting at I.
     Lreg(usize),
     /// It's not an instruction. Something's wrong.
-    Err(u16),
+    Err,
 }

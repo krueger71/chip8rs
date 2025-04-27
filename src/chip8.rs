@@ -235,22 +235,22 @@ impl Chip8 {
                 self.registers[x] = self.registers[y];
             }
             Or(x, y) => {
+                self.registers[x] |= self.registers[y];
                 if self.quirks.vf_reset {
                     self.registers[0xF] = 0;
                 }
-                self.registers[x] |= self.registers[y];
             }
             And(x, y) => {
+                self.registers[x] &= self.registers[y];
                 if self.quirks.vf_reset {
                     self.registers[0xF] = 0;
                 }
-                self.registers[x] &= self.registers[y];
             }
             Xor(x, y) => {
+                self.registers[x] ^= self.registers[y];
                 if self.quirks.vf_reset {
                     self.registers[0xF] = 0;
                 }
-                self.registers[x] ^= self.registers[y];
             }
             Add(x, y) => {
                 let (result, overflow) = self.registers[x].overflowing_add(self.registers[y]);

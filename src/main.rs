@@ -34,19 +34,19 @@ struct Cli {
     #[arg(short, long, value_parser=maybe_hex::<u32>, default_value_t = 0xff666f66)]
     background: u32,
     /// Pitch of buzzer in Hz
-    #[arg(short, long, default_value_t = 220)]
+    #[arg(short, long, default_value_t = 432)]
     pitch: u16,
     /// Quirk: AND, OR, XOR reset VF to zero
-    #[arg(long)]
+    #[arg(long, default_value_t = true)]
     quirk_vf_reset: bool,
     /// Quirk: Memory load/store registers operations increment I
-    #[arg(long)]
+    #[arg(long, default_value_t = true)]
     quirk_memory: bool,
     /// Quirk: Only one draw operation per frame
-    #[arg(long)]
+    #[arg(long, default_value_t = true)]
     quirk_display_wait: bool,
     /// Quirk: Drawing operations clip instead of wrap
-    #[arg(long)]
+    #[arg(long, default_value_t = true)]
     quirk_clipping: bool,
     /// Quirk: Shifting operations use VY instead of only VX
     #[arg(long)]

@@ -62,6 +62,8 @@ pub struct Chip8 {
     pub display_update: bool,
     /// Keyboard input as array of bool
     pub keyboard: [bool; KEYBOARD_SIZE],
+    /// The key seen going down while Ldkp waits; the wait ends when it comes back up
+    wait_key: Option<u8>,
     /// Options/quirks
     pub quirks: Quirks,
 }
@@ -101,6 +103,7 @@ impl Chip8 {
             display: [[false; DISPLAY_WIDTH]; DISPLAY_HEIGHT],
             display_update: false,
             keyboard: [false; KEYBOARD_SIZE],
+            wait_key: None,
             quirks,
         }
     }
@@ -359,25 +362,26 @@ impl Chip8 {
                 self.st = self.registers[x];
             }
             Ldkp(x) => {
-                let mut wait = true;
-                for (key, pressed) in self.keyboard.iter().enumerate() {
-                    if *pressed {
-                        self.registers[x] = key as u8;
-                        wait = false;
-                        self.keyboard[key] = false;
-                        break;
+                // The original hardware moves on when the key is released, not when it
+                // goes down. The keyboard state is left alone for Skp and Sknp to read.
+                match self.wait_key {
+                    None => {
+                        self.wait_key = self.keyboard.iter().position(|&p| p).map(|k| k as u8);
+                        self.pc -= 2;
                     }
-                }
-
-                if wait {
-                    self.pc -= 2;
+                    Some(key) if self.keyboard[key as usize] => self.pc -= 2,
+                    Some(key) => {
+                        self.registers[x] = key;
+                        self.wait_key = None;
+                    }
                 }
             }
             Addi(x) => {
                 self.i += self.registers[x] as usize;
             }
             Font(x) => {
-                self.i = (self.registers[x] * 5) as usize;
+                // Only the low nibble names a character; the u8 multiply would overflow above 51
+                self.i = (self.registers[x] & 0xF) as usize * 5;
             }
             Bcd(x) => {
                 let val = self.registers[x] as u16;
